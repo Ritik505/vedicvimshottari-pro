@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vimshottari-dasha-calculator.netlify.app/sitemap.xml
