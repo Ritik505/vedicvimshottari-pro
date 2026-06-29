@@ -468,13 +468,54 @@ Thank you!`
                       <p className="text-lg font-medium text-white">{result.info.ayanamsa.toFixed(4)}°</p>
                     </div>
                     <div className="bg-stone-900 border border-stone-800 p-4 rounded-2xl">
-                      <button 
-                        onClick={exportPDF}
-                        className="w-full h-full flex flex-col items-center justify-center gap-1 text-amber-500 hover:text-amber-400 transition-colors"
-                      >
-                        <Download className="w-5 h-5" />
-                        <span className="text-[10px] uppercase tracking-widest font-bold">Export PDF</span>
-                      </button>
+<button 
+  onClick={exportPDF}
+  className="
+    group
+
+    w-[calc(100%+2rem)]
+    h-[calc(100%+2rem)]
+    -m-4
+
+    flex flex-col items-center justify-center gap-1
+
+    rounded-2xl
+
+    text-amber-500
+
+    bg-gradient-to-br
+    from-[#111111]
+    via-[#0d0d0d]
+    to-[#161616]
+
+    transition-all duration-300 ease-out
+
+    hover:-translate-y-1
+    hover:from-[#1a1a1a]
+    hover:to-[#101010]
+
+    hover:text-amber-300
+    hover:shadow-[0_0_25px_rgba(245,158,11,0.15)]
+
+    active:scale-[0.98]
+  "
+>
+  <Download className="
+    w-5 h-5
+    transition-all duration-300
+    group-hover:scale-110
+    group-hover:-translate-y-0.5
+  " />
+
+  <span className="
+    text-[10px]
+    uppercase
+    tracking-widest
+    font-bold
+  ">
+    Export PDF
+  </span>
+</button>
                     </div>
                   </div>
 
