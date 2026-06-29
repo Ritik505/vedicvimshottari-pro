@@ -521,15 +521,53 @@ Thank you!`
 
                     {/* 🔮 CONSULTATION CARD */}
   <div className="col-span-2 bg-amber-500 border border-amber-400 p-4 rounded-2xl">
-    <button
-      onClick={openWhatsApp}
-      className="w-full flex flex-col items-center justify-center gap-2 text-black font-bold"
-    >
-      <Sparkles className="w-5 h-5" />
-      <span className="text-xs uppercase tracking-widest">
-        Book Personal Horoscope Consultation
-      </span>
-    </button>
+<button
+  onClick={openWhatsApp}
+  className="
+    group
+
+    w-full
+    flex flex-col items-center justify-center gap-2
+
+    rounded-2xl
+
+    bg-gradient-to-br
+    from-amber-500
+    via-amber-400
+    to-amber-600
+
+    text-black font-bold
+
+    transition-all duration-300 ease-out
+
+    hover:-translate-y-1
+    hover:from-amber-400
+    hover:via-amber-300
+    hover:to-amber-500
+
+    hover:shadow-[0_0_30px_rgba(245,158,11,0.28)]
+
+    active:scale-[0.98]
+  "
+>
+  <Sparkles className="
+    w-5 h-5
+    transition-all duration-300
+    group-hover:scale-110
+    group-hover:rotate-6
+  " />
+
+  <span className="
+    text-xs
+    uppercase
+    tracking-widest
+
+    transition-all duration-300
+    group-hover:tracking-[0.18em]
+  ">
+    Book Personal Horoscope Consultation
+  </span>
+</button>
   </div>
 
 
