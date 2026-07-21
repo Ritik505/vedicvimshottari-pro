@@ -88,6 +88,10 @@ src/
 ├── main.tsx          # React application entry point
 └── index.css         # Global styles and Tailwind configuration
 
+```
+
+---
+
 
 ## Calculation & Astronomical Standards
 
