@@ -19,7 +19,8 @@ import {
   AlertCircle,
   Loader2,
   Search,
-  UserCheck
+  UserCheck,
+  ShieldCheck
 } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { jsPDF } from 'jspdf';
@@ -55,6 +56,18 @@ interface AgeAntardashaMatch {
   start: string;
   end: string;
 }
+
+const PLANET_MATURITY_AGES = [
+  { planet: 'Jupiter', age: 16 },
+  { planet: 'Sun', age: 22 },
+  { planet: 'Moon', age: 24 },
+  { planet: 'Venus', age: 25 },
+  { planet: 'Mars', age: 28 },
+  { planet: 'Mercury', age: 32 },
+  { planet: 'Saturn', age: 36 },
+  { planet: 'Rahu', age: 42 },
+  { planet: 'Ketu', age: 48 },
+];
 
 const DashaLevel: React.FC<DashaLevelProps> = ({ 
   period, 
@@ -205,13 +218,15 @@ Thank you!`
   };
 
   // Age Lookup - Collects all Antardashas active during the full year of that age
-  const handleCalculateAgeDasha = () => {
-    if (!result || targetAge === '' || isNaN(Number(targetAge)) || Number(targetAge) < 0) return;
+  const handleCalculateAgeDasha = (ageOverride?: number) => {
+    if (!result) return;
 
-    const ageNum = Math.floor(Number(targetAge));
+    const ageToUse = ageOverride !== undefined ? ageOverride : Number(targetAge);
+    if (isNaN(ageToUse) || ageToUse < 0) return;
+
+    const ageNum = Math.floor(ageToUse);
     const birthDateTime = DateTime.fromISO(`${dob}T${tob}`, { zone: timezone });
 
-    // Define full year window for that age (e.g. age 25 spans from age 25.0 to 26.0)
     const yearStartDT = birthDateTime.plus({ years: ageNum });
     const yearEndDT = birthDateTime.plus({ years: ageNum + 1 });
 
@@ -220,11 +235,9 @@ Thank you!`
 
     const foundMatches: AgeAntardashaMatch[] = [];
 
-    // Scan all Mahadashas and Antardashas that overlap with this age year window
     for (const md of result.dashas) {
       if (md.subDashas) {
         for (const ad of md.subDashas) {
-          // Check for date range overlap: (StartA < EndB) AND (EndA > StartB)
           if (ad.start < yearEndStr && ad.end > yearStartStr) {
             foundMatches.push({
               mahadasha: md.planet,
@@ -639,62 +652,110 @@ Thank you!`
                     </div>
                   </div>
 
-                  {/* AGE DASHA LOOKUP SECTION - LOCATED AFTER ALL DASHAS */}
-                  <div className="bg-stone-900/80 border border-stone-800 p-6 rounded-3xl space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Search className="w-5 h-5 text-amber-500" />
-                      <h3 className="text-base font-semibold text-white">Check Dasha By Age</h3>
-                    </div>
+                  {/* AGE DASHA LOOKUP SECTION */}
+                  <div className="bg-stone-900/80 border border-stone-800 p-6 rounded-3xl space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Search className="w-5 h-5 text-amber-500" />
+                        <h3 className="text-base font-semibold text-white">Check Dasha By Age</h3>
+                      </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <input 
-                        type="number" 
-                        step="1"
-                        min="0"
-                        placeholder="Enter Age Year (e.g. 25, 30)"
-                        value={targetAge}
-                        onChange={(e) => setTargetAge(e.target.value)}
-                        className="flex-1 bg-stone-950 border border-stone-800 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all text-white placeholder:text-stone-600"
-                      />
-                      <button 
-                        onClick={handleCalculateAgeDasha}
-                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-3 rounded-xl transition-all shrink-0 flex items-center justify-center gap-2"
-                      >
-                        <UserCheck className="w-4 h-4" />
-                        Find Age Dasha
-                      </button>
-                    </div>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input 
+                          type="number" 
+                          step="1"
+                          min="0"
+                          placeholder="Enter Age Year (e.g. 25, 30)"
+                          value={targetAge}
+                          onChange={(e) => setTargetAge(e.target.value)}
+                          className="flex-1 bg-stone-950 border border-stone-800 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all text-white placeholder:text-stone-600"
+                        />
+                        <button 
+                          onClick={() => handleCalculateAgeDasha()}
+                          className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-3 rounded-xl transition-all shrink-0 flex items-center justify-center gap-2"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                          Find Age Dasha
+                        </button>
+                      </div>
 
-                    {/* Result showing all active Antardashas during that age year */}
-                    {ageDashaResult && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-stone-950 border border-amber-500/30 p-5 rounded-2xl space-y-3 mt-4"
-                      >
-                        <div className="text-xs uppercase tracking-widest text-amber-500 font-medium">
-                          Active Dasha Window for Age {ageDashaResult.age} ({ageDashaResult.startDateStr} — {ageDashaResult.endDateStr})
-                        </div>
-
-                        {ageDashaResult.matches.map((item, idx) => (
-                          <div key={idx} className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl space-y-1">
-                            <div className="text-[11px] text-stone-500 font-medium uppercase tracking-wider">
-                              Period #{idx + 1}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 text-base font-semibold text-white">
-                              <span className="text-stone-400 text-xs font-normal">Mahadasha:</span>
-                              <span className="text-amber-400">{item.mahadasha}</span>
-                              <ChevronRight className="w-4 h-4 text-stone-600" />
-                              <span className="text-stone-400 text-xs font-normal">Antardasha:</span>
-                              <span className="text-amber-400">{item.antardasha}</span>
-                            </div>
-                            <div className="text-xs text-stone-400 font-mono pt-0.5">
-                              {item.start} — {item.end}
-                            </div>
+                      {/* Result showing all active Antardashas during that age year */}
+                      {ageDashaResult && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-stone-950 border border-amber-500/30 p-5 rounded-2xl space-y-3 mt-4"
+                        >
+                          <div className="text-xs uppercase tracking-widest text-amber-500 font-medium">
+                            Active Dasha Window for Age {ageDashaResult.age} ({ageDashaResult.startDateStr} — {ageDashaResult.endDateStr})
                           </div>
+
+                          {ageDashaResult.matches.map((item, idx) => (
+                            <div key={idx} className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl space-y-1">
+                              <div className="text-[11px] text-stone-500 font-medium uppercase tracking-wider">
+                                Period #{idx + 1}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 text-base font-semibold text-white">
+                                <span className="text-stone-400 text-xs font-normal">Mahadasha:</span>
+                                <span className="text-amber-400">{item.mahadasha}</span>
+                                <ChevronRight className="w-4 h-4 text-stone-600" />
+                                <span className="text-stone-400 text-xs font-normal">Antardasha:</span>
+                                <span className="text-amber-400">{item.antardasha}</span>
+                              </div>
+                              <div className="text-xs text-stone-400 font-mono pt-0.5">
+                                {item.start} — {item.end}
+                              </div>
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </div>
+
+                    {/* INTERACTIVE PLANETARY MATURITY AGES REFERENCE */}
+                    <div className="border-t border-stone-800 pt-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-amber-500" />
+                        <h4 className="text-xs font-semibold uppercase tracking-widest text-amber-500">
+                          Planetary Maturity Ages Reference
+                        </h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
+                        {PLANET_MATURITY_AGES.map((item) => (
+                          <button
+                            key={item.planet}
+                            type="button"
+                            onClick={() => {
+                              setTargetAge(item.age.toString());
+                              handleCalculateAgeDasha(item.age);
+                            }}
+                            className="
+                              group
+                              bg-stone-950
+                              border border-stone-800
+                              hover:border-amber-500/60
+                              hover:bg-amber-500/10
+                              hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]
+                              active:scale-95
+                              rounded-xl
+                              p-2.5
+                              text-center
+                              transition-all
+                              duration-200
+                              cursor-pointer
+                            "
+                            title={`Click to check ${item.planet} Maturity Dasha (Age ${item.age})`}
+                          >
+                            <div className="text-[11px] font-medium text-stone-400 group-hover:text-stone-200 transition-colors">
+                              {item.planet}
+                            </div>
+                            <div className="text-sm font-bold text-amber-400 group-hover:text-amber-300 group-hover:scale-105 transition-all mt-0.5">
+                              {item.age} yrs
+                            </div>
+                          </button>
                         ))}
-                      </motion.div>
-                    )}
+                      </div>
+                    </div>
                   </div>
 
                 </motion.div>
