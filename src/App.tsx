@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar, 
@@ -17,9 +17,10 @@ import {
   Sparkles,
   Info,
   AlertCircle,
-  Loader2
+  Loader2,
+  Search,
+  UserCheck
 } from 'lucide-react';
-import axios from 'axios';
 import { DateTime } from 'luxon';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -46,6 +47,13 @@ interface DashaLevelProps {
   isCurrent: (s: string, e: string) => boolean;
   onPathSelect?: (path: DashaPeriod[]) => void;
   ancestors?: DashaPeriod[];
+}
+
+interface AgeAntardashaMatch {
+  mahadasha: string;
+  antardasha: string;
+  start: string;
+  end: string;
 }
 
 const DashaLevel: React.FC<DashaLevelProps> = ({ 
@@ -143,13 +151,20 @@ export default function App() {
   const [tob, setTob] = useState('12:00:00');
   const [location, setLocation] = useState('New Delhi, India');
   const [timezone, setTimezone] = useState('Asia/Kolkata');
+  const [targetAge, setTargetAge] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ info: any; dashas: DashaPeriod[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<DashaPeriod[]>([]);
+  const [ageDashaResult, setAgeDashaResult] = useState<{ 
+    age: string;
+    startDateStr: string;
+    endDateStr: string;
+    matches: AgeAntardashaMatch[];
+  } | null>(null);
 
-    const openWhatsApp = () => {
-    const phoneNumber = "919818966252"; // replace with your number
+  const openWhatsApp = () => {
+    const phoneNumber = "919818966252";
 
     const message = encodeURIComponent(
 `Hello Ritik ji,
@@ -175,6 +190,8 @@ Thank you!`
     setLoading(true);
     setError(null);
     setSelectedPath([]);
+    setAgeDashaResult(null);
+
     try {
       await new Promise(resolve => setTimeout(resolve, 800));
       const dashaInfo = calculateDasha(dob, tob, timezone);
@@ -187,103 +204,137 @@ Thank you!`
     }
   };
 
+  // Age Lookup - Collects all Antardashas active during the full year of that age
+  const handleCalculateAgeDasha = () => {
+    if (!result || targetAge === '' || isNaN(Number(targetAge)) || Number(targetAge) < 0) return;
+
+    const ageNum = Math.floor(Number(targetAge));
+    const birthDateTime = DateTime.fromISO(`${dob}T${tob}`, { zone: timezone });
+
+    // Define full year window for that age (e.g. age 25 spans from age 25.0 to 26.0)
+    const yearStartDT = birthDateTime.plus({ years: ageNum });
+    const yearEndDT = birthDateTime.plus({ years: ageNum + 1 });
+
+    const yearStartStr = yearStartDT.toFormat('yyyy-MM-dd HH:mm:ss');
+    const yearEndStr = yearEndDT.toFormat('yyyy-MM-dd HH:mm:ss');
+
+    const foundMatches: AgeAntardashaMatch[] = [];
+
+    // Scan all Mahadashas and Antardashas that overlap with this age year window
+    for (const md of result.dashas) {
+      if (md.subDashas) {
+        for (const ad of md.subDashas) {
+          // Check for date range overlap: (StartA < EndB) AND (EndA > StartB)
+          if (ad.start < yearEndStr && ad.end > yearStartStr) {
+            foundMatches.push({
+              mahadasha: md.planet,
+              antardasha: ad.planet,
+              start: ad.start,
+              end: ad.end
+            });
+          }
+        }
+      }
+    }
+
+    setAgeDashaResult({
+      age: ageNum.toString(),
+      startDateStr: yearStartDT.toFormat('dd MMM yyyy'),
+      endDateStr: yearEndDT.toFormat('dd MMM yyyy'),
+      matches: foundMatches
+    });
+  };
+
   const checkHealth = () => {
     alert("Astrology engine is active. 5-level Dasha hierarchy enabled.");
   };
 
   const exportPDF = () => {
-  if (!result) return;
+    if (!result) return;
 
-  const doc = new jsPDF();
-  let yPosition = 20;
+    const doc = new jsPDF();
+    let yPosition = 20;
 
-  const addFooter = () => {
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
+    const addFooter = () => {
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text(
+          "© 2026 VedicVimshottari Pro™. Developed by Ritik Verma. All rights reserved.",
+          105,
+          290,
+          { align: "center" }
+        );
+        doc.text(`Page ${i} of ${pageCount}`, 200, 290, { align: "right" });
+      }
+    };
 
-      doc.setFontSize(8);
-      doc.setTextColor(120);
-      doc.text(
-        "© 2026 VedicVimshottari Pro™. Developed by Ritik Verma. All rights reserved.",
-        105,
-        290,
-        { align: "center" }
-      );
-
-      // Optional page number
-      doc.text(`Page ${i} of ${pageCount}`, 200, 290, { align: "right" });
-    }
-  };
-
-  doc.setFontSize(20);
-  doc.setTextColor(184, 134, 11);
-  doc.text("Vimshottari Dasha Report", 105, yPosition, { align: "center" });
-
-  yPosition += 10;
-
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(
-    `Generated on: ${DateTime.now().toLocaleString(DateTime.DATETIME_MED)}`,
-    105,
-    yPosition,
-    { align: "center" }
-  );
-
-  yPosition += 15;
-
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`Birth Date: ${dob} ${tob}`, 20, yPosition);
-  yPosition += 7;
-  doc.text(`Location: ${location} (${timezone})`, 20, yPosition);
-  yPosition += 7;
-  doc.text(`Nakshatra: ${result.info.nakshatra}`, 20, yPosition);
-  yPosition += 15;
-
-  result.dashas.forEach((md) => {
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = 20;
-    }
-
-    doc.setFontSize(14);
+    doc.setFontSize(20);
     doc.setTextColor(184, 134, 11);
+    doc.text("Vimshottari Dasha Report", 105, yPosition, { align: "center" });
+
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
     doc.text(
-      `${md.planet} Mahadasha (${md.start} — ${md.end})`,
-      20,
-      yPosition
+      `Generated on: ${DateTime.now().toLocaleString(DateTime.DATETIME_MED)}`,
+      105,
+      yPosition,
+      { align: "center" }
     );
 
-    yPosition += 8;
+    yPosition += 15;
 
-    const antardashaData =
-      md.subDashas?.map((ad: any) => [ad.planet, ad.start, ad.end]) || [];
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Birth Date: ${dob} ${tob}`, 20, yPosition);
+    yPosition += 7;
+    doc.text(`Location: ${location} (${timezone})`, 20, yPosition);
+    yPosition += 7;
+    doc.text(`Nakshatra: ${result.info.nakshatra}`, 20, yPosition);
+    yPosition += 15;
 
-    autoTable(doc, {
-      startY: yPosition,
-      head: [["Antardasha Lord", "Start Time", "End Time"]],
-      body: antardashaData,
-      theme: "grid",
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [184, 134, 11] },
-      margin: { left: 20, right: 20 },
-      didDrawPage: (data) => {
-        yPosition = data.cursor?.y || 20;
-      },
+    result.dashas.forEach((md) => {
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(184, 134, 11);
+      doc.text(
+        `${md.planet} Mahadasha (${md.start} — ${md.end})`,
+        20,
+        yPosition
+      );
+
+      yPosition += 8;
+
+      const antardashaData =
+        md.subDashas?.map((ad: any) => [ad.planet, ad.start, ad.end]) || [];
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [["Antardasha Lord", "Start Time", "End Time"]],
+        body: antardashaData,
+        theme: "grid",
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [184, 134, 11] },
+        margin: { left: 20, right: 20 },
+        didDrawPage: (data) => {
+          yPosition = data.cursor?.y || 20;
+        },
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 12;
     });
 
-    yPosition = (doc as any).lastAutoTable.finalY + 12;
-  });
-
-  // 🔥 Add footer AFTER content is fully generated
-  addFooter();
-
-  doc.save(`Vedic_Dasha_${dob}.pdf`);
-};
-
-
+    addFooter();
+    doc.save(`Vedic_Dasha_${dob}.pdf`);
+  };
 
   const isCurrent = (start: string, end: string) => {
     const now = DateTime.now().setZone(timezone).toFormat('yyyy-MM-dd HH:mm:ss');
@@ -315,7 +366,6 @@ Thank you!`
             className="text-5xl md:text-7xl font-light tracking-tighter text-white mb-4"
           >
             Vedic<span className="text-amber-500 font-normal">Vimshottari</span>
-            
           </motion.h1>
           <h6 className="text-stone-400 text-sm mb-2">by Ritik Verma</h6>
           <p className="text-stone-500 max-w-xl mx-auto text-lg font-light">
@@ -468,108 +518,87 @@ Thank you!`
                       <p className="text-lg font-medium text-white">{result.info.ayanamsa.toFixed(4)}°</p>
                     </div>
                     <div className="bg-stone-900 border border-stone-800 p-4 rounded-2xl">
-<button 
-  onClick={exportPDF}
-  className="
-    group
-
-    w-[calc(100%+2rem)]
-    h-[calc(100%+2rem)]
-    -m-4
-
-    flex flex-col items-center justify-center gap-1
-
-    rounded-2xl
-
-    text-amber-500
-
-    bg-gradient-to-br
-    from-[#111111]
-    via-[#0d0d0d]
-    to-[#161616]
-
-    transition-all duration-300 ease-out
-
-    hover:-translate-y-1
-    hover:from-[#1a1a1a]
-    hover:to-[#101010]
-
-    hover:text-amber-300
-    hover:shadow-[0_0_25px_rgba(245,158,11,0.15)]
-
-    active:scale-[0.98]
-  "
->
-  <Download className="
-    w-5 h-5
-    transition-all duration-300
-    group-hover:scale-110
-    group-hover:-translate-y-0.5
-  " />
-
-  <span className="
-    text-[10px]
-    uppercase
-    tracking-widest
-    font-bold
-  ">
-    Export PDF
-  </span>
-</button>
+                      <button 
+                        onClick={exportPDF}
+                        className="
+                          group
+                          w-[calc(100%+2rem)]
+                          h-[calc(100%+2rem)]
+                          -m-4
+                          flex flex-col items-center justify-center gap-1
+                          rounded-2xl
+                          text-amber-500
+                          bg-gradient-to-br
+                          from-[#111111]
+                          via-[#0d0d0d]
+                          to-[#161616]
+                          transition-all duration-300 ease-out
+                          hover:-translate-y-1
+                          hover:from-[#1a1a1a]
+                          hover:to-[#101010]
+                          hover:text-amber-300
+                          hover:shadow-[0_0_25px_rgba(245,158,11,0.15)]
+                          active:scale-[0.98]
+                        "
+                      >
+                        <Download className="
+                          w-5 h-5
+                          transition-all duration-300
+                          group-hover:scale-110
+                          group-hover:-translate-y-0.5
+                        " />
+                        <span className="
+                          text-[10px]
+                          uppercase
+                          tracking-widest
+                          font-bold
+                        ">
+                          Export PDF
+                        </span>
+                      </button>
                     </div>
                   </div>
 
-                    {/* 🔮 CONSULTATION CARD */}
-  <div className="col-span-2 bg-amber-500 border border-amber-400 p-4 rounded-2xl">
-<button
-  onClick={openWhatsApp}
-  className="
-    group
-
-    w-full
-    flex flex-col items-center justify-center gap-2
-
-    rounded-2xl
-
-    bg-gradient-to-br
-    from-amber-500
-    via-amber-400
-    to-amber-600
-
-    text-black font-bold
-
-    transition-all duration-300 ease-out
-
-    hover:-translate-y-1
-    hover:from-amber-400
-    hover:via-amber-300
-    hover:to-amber-500
-
-    hover:shadow-[0_0_30px_rgba(245,158,11,0.28)]
-
-    active:scale-[0.98]
-  "
->
-  <Sparkles className="
-    w-5 h-5
-    transition-all duration-300
-    group-hover:scale-110
-    group-hover:rotate-6
-  " />
-
-  <span className="
-    text-xs
-    uppercase
-    tracking-widest
-
-    transition-all duration-300
-    group-hover:tracking-[0.18em]
-  ">
-    Book Personal Horoscope Consultation
-  </span>
-</button>
-  </div>
-
+                  {/* 🔮 CONSULTATION CARD */}
+                  <div className="col-span-2 bg-amber-500 border border-amber-400 p-4 rounded-2xl">
+                    <button
+                      onClick={openWhatsApp}
+                      className="
+                        group
+                        w-full
+                        flex flex-col items-center justify-center gap-2
+                        rounded-2xl
+                        bg-gradient-to-br
+                        from-amber-500
+                        via-amber-400
+                        to-amber-600
+                        text-black font-bold
+                        transition-all duration-300 ease-out
+                        hover:-translate-y-1
+                        hover:from-amber-400
+                        hover:via-amber-300
+                        hover:to-amber-500
+                        hover:shadow-[0_0_30px_rgba(245,158,11,0.28)]
+                        active:scale-[0.98]
+                      "
+                    >
+                      <Sparkles className="
+                        w-5 h-5
+                        transition-all duration-300
+                        group-hover:scale-110
+                        group-hover:rotate-6
+                      " />
+                      <span className="
+                        text-xs
+                        uppercase
+                        tracking-widest
+                        transition-all duration-300
+                        group-hover:tracking-[0.18em]
+                      ">
+                        Book Personal Horoscope Consultation
+                      </span>
+                    </button>
+                  </div>
 
                   {/* Selected Dasha Path */}
                   {selectedPath.length > 0 && (
@@ -609,6 +638,65 @@ Thank you!`
                       ))}
                     </div>
                   </div>
+
+                  {/* AGE DASHA LOOKUP SECTION - LOCATED AFTER ALL DASHAS */}
+                  <div className="bg-stone-900/80 border border-stone-800 p-6 rounded-3xl space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Search className="w-5 h-5 text-amber-500" />
+                      <h3 className="text-base font-semibold text-white">Check Dasha By Age</h3>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input 
+                        type="number" 
+                        step="1"
+                        min="0"
+                        placeholder="Enter Age Year (e.g. 25, 30)"
+                        value={targetAge}
+                        onChange={(e) => setTargetAge(e.target.value)}
+                        className="flex-1 bg-stone-950 border border-stone-800 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all text-white placeholder:text-stone-600"
+                      />
+                      <button 
+                        onClick={handleCalculateAgeDasha}
+                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-3 rounded-xl transition-all shrink-0 flex items-center justify-center gap-2"
+                      >
+                        <UserCheck className="w-4 h-4" />
+                        Find Age Dasha
+                      </button>
+                    </div>
+
+                    {/* Result showing all active Antardashas during that age year */}
+                    {ageDashaResult && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-stone-950 border border-amber-500/30 p-5 rounded-2xl space-y-3 mt-4"
+                      >
+                        <div className="text-xs uppercase tracking-widest text-amber-500 font-medium">
+                          Active Dasha Window for Age {ageDashaResult.age} ({ageDashaResult.startDateStr} — {ageDashaResult.endDateStr})
+                        </div>
+
+                        {ageDashaResult.matches.map((item, idx) => (
+                          <div key={idx} className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl space-y-1">
+                            <div className="text-[11px] text-stone-500 font-medium uppercase tracking-wider">
+                              Period #{idx + 1}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-base font-semibold text-white">
+                              <span className="text-stone-400 text-xs font-normal">Mahadasha:</span>
+                              <span className="text-amber-400">{item.mahadasha}</span>
+                              <ChevronRight className="w-4 h-4 text-stone-600" />
+                              <span className="text-stone-400 text-xs font-normal">Antardasha:</span>
+                              <span className="text-amber-400">{item.antardasha}</span>
+                            </div>
+                            <div className="text-xs text-stone-400 font-mono pt-0.5">
+                              {item.start} — {item.end}
+                            </div>
+                          </div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </div>
+
                 </motion.div>
               )}
             </AnimatePresence>
@@ -617,30 +705,27 @@ Thank you!`
       </div>
 
       {/* Footer */}
-<footer className="relative mt-24 py-16 bg-gradient-to-b from-transparent to-stone-950 border-t border-amber-500/10">
+      <footer className="relative mt-24 py-16 bg-gradient-to-b from-transparent to-stone-950 border-t border-amber-500/10">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <div className="inline-block px-4 py-1 mb-6 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs uppercase tracking-widest">
+            Professional Astrology Engine
+          </div>
 
-  <div className="max-w-6xl mx-auto px-4 text-center">
+          <h3 className="text-xl text-white font-light mb-3">
+            Vedic<span className="text-amber-500">Vimshottari</span>
+          </h3>
 
-    <div className="inline-block px-4 py-1 mb-6 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs uppercase tracking-widest">
-      Professional Astrology Engine
-    </div>
+          <p className="text-stone-400 text-sm">
+            © 2026 VedicVimshottari Pro™. Developed by 
+            <span className="text-white font-medium"> Ritik Verma</span>. 
+            All rights reserved.
+          </p>
 
-    <h3 className="text-xl text-white font-light mb-3">
-      Vedic<span className="text-amber-500">Vimshottari</span>
-    </h3>
-
-    <p className="text-stone-400 text-sm">
-      © 2026 VedicVimshottari Pro™. Developed by 
-      <span className="text-white font-medium"> Ritik Verma</span>. 
-      All rights reserved.
-    </p>
-
-    <p className="text-stone-600 text-xs mt-3">
-      High-precision Lahiri Ayanamsa based Dasha Calculations.
-    </p>
-
-  </div>
-</footer>
+          <p className="text-stone-600 text-xs mt-3">
+            High-precision Lahiri Ayanamsa based Dasha Calculations.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
