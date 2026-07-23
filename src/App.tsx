@@ -176,6 +176,21 @@ export default function App() {
     matches: AgeAntardashaMatch[];
   } | null>(null);
 
+  const getCurrentAgeInYearsMonthsDays = (birthDateStr: string) => {
+    if (!birthDateStr) return null;
+    const birth = DateTime.fromISO(birthDateStr);
+    const now = DateTime.now();
+
+    if (!birth.isValid || birth > now) return null;
+
+    const diff = now.diff(birth, ['years', 'months', 'days']).toObject();
+    return {
+      years: Math.floor(diff.years || 0),
+      months: Math.floor(diff.months || 0),
+      days: Math.floor(diff.days || 0)
+    };
+  };
+
   const openWhatsApp = () => {
     const phoneNumber = "919818966252";
 
@@ -217,7 +232,6 @@ Thank you!`
     }
   };
 
-  // Age Lookup - Collects all Antardashas active during the full year of that age
   const handleCalculateAgeDasha = (ageOverride?: number) => {
     if (!result) return;
 
@@ -572,7 +586,7 @@ Thank you!`
                     </div>
                   </div>
 
-                  {/* 🔮 CONSULTATION CARD */}
+                  {/* CONSULTATION CARD */}
                   <div className="col-span-2 bg-amber-500 border border-amber-400 p-4 rounded-2xl">
                     <button
                       onClick={openWhatsApp}
@@ -655,9 +669,24 @@ Thank you!`
                   {/* AGE DASHA LOOKUP SECTION */}
                   <div className="bg-stone-900/80 border border-stone-800 p-6 rounded-3xl space-y-6">
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Search className="w-5 h-5 text-amber-500" />
-                        <h3 className="text-base font-semibold text-white">Check Dasha By Age</h3>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Search className="w-5 h-5 text-amber-500" />
+                          <h3 className="text-base font-semibold text-white">Check Dasha By Age</h3>
+                        </div>
+
+                        {/* Current Age Badge in Years, Months & Days */}
+                        {dob && (() => {
+                          const currentAge = getCurrentAgeInYearsMonthsDays(dob);
+                          return currentAge ? (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-xs font-medium text-amber-400">
+                              <span>Current Age:</span>
+                              <span className="font-bold text-white">
+                                {currentAge.years} yrs {currentAge.months} mos {currentAge.days} days
+                              </span>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-3">
