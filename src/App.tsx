@@ -27,7 +27,14 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { calculateDasha, generateDashaHierarchy } from './services/astrology';
+import {
+  calculateDasha,
+  generateDashaHierarchy,
+  calculatePlanetaryPositions,
+  calculateCharaKarakas,
+  type PlanetaryPosition,
+  type CharaKaraka,
+} from './services/astrology';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -166,7 +173,12 @@ export default function App() {
   const [timezone, setTimezone] = useState('Asia/Kolkata');
   const [targetAge, setTargetAge] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ info: any; dashas: DashaPeriod[] } | null>(null);
+  const [result, setResult] = useState<{
+  info: any;
+  dashas: DashaPeriod[];
+  planetaryPositions: PlanetaryPosition[];
+  charaKarakas: CharaKaraka[];
+} | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<DashaPeriod[]>([]);
   const [ageDashaResult, setAgeDashaResult] = useState<{ 
@@ -215,22 +227,67 @@ Thank you!`
   };
 
   const handleCalculate = async () => {
-    setLoading(true);
-    setError(null);
-    setSelectedPath([]);
-    setAgeDashaResult(null);
+  setLoading(true);
+  setError(null);
+  setSelectedPath([]);
+  setAgeDashaResult(null);
 
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const dashaInfo = calculateDasha(dob, tob, timezone);
-      const hierarchy = generateDashaHierarchy(dashaInfo.birthJD, dashaInfo);
-      setResult({ info: dashaInfo, dashas: hierarchy });
-    } catch (err: any) {
-      setError(err.message || 'Calculation failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    await new Promise(resolve =>
+      setTimeout(resolve, 800)
+    );
+
+    // --------------------------------------------------
+    // Vimshottari Dasha
+    // --------------------------------------------------
+
+    const dashaInfo = await calculateDasha(
+      dob,
+      tob,
+      timezone
+    );
+
+    const hierarchy = generateDashaHierarchy(
+      dashaInfo.birthJD,
+      dashaInfo
+    );
+
+    // --------------------------------------------------
+    // Planetary Positions
+    // --------------------------------------------------
+
+    const planetaryPositions =
+      await calculatePlanetaryPositions(
+        dob,
+        tob,
+        timezone
+      );
+
+    // --------------------------------------------------
+    // Jaimini Chara Karakas
+    // --------------------------------------------------
+
+    const charaKarakas =
+      calculateCharaKarakas(
+        planetaryPositions
+      );
+
+    setResult({
+      info: dashaInfo,
+      dashas: hierarchy,
+      planetaryPositions,
+      charaKarakas,
+    });
+
+  } catch (err: any) {
+    setError(
+      err.message ||
+      "Calculation failed."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleCalculateAgeDasha = (ageOverride?: number) => {
     if (!result) return;
@@ -666,6 +723,7 @@ Thank you!`
                     </div>
                   </div>
 
+
                   {/* AGE DASHA LOOKUP SECTION */}
                   <div className="bg-stone-900/80 border border-stone-800 p-6 rounded-3xl space-y-6">
                     <div className="space-y-4">
@@ -785,6 +843,315 @@ Thank you!`
                         ))}
                       </div>
                     </div>
+                  </div>
+
+                  {/* =========================================================
+                      PLANETARY DEGREES + CHARA KARAKA
+                  ========================================================= */}
+
+                  <div className="bg-stone-900/80 border border-stone-800 p-6 rounded-3xl space-y-6">
+
+                    {/* Header */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-amber-500" />
+
+                        <div>
+                          <h3 className="text-base font-semibold text-white">
+                            Planetary Degrees
+                          </h3>
+
+                          <p className="text-[11px] text-stone-500 mt-0.5">
+                            Sidereal positions for Jaimini Chara Karaka analysis
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                        <span className="text-[10px] uppercase tracking-widest text-amber-400 font-semibold">
+                          Lahiri Sidereal
+                        </span>
+                      </div>
+
+                    </div>
+
+                    {/* Explanation */}
+                    <div className="bg-stone-950 border border-stone-800 rounded-2xl p-4">
+
+                      <p className="text-xs leading-relaxed text-stone-400">
+                        For Chara Karaka calculation, the important value is the
+                        <span className="text-amber-400 font-semibold">
+                          {" "}degree within the sign
+                        </span>
+                        {" "}rather than the planet's total 0°–360° longitude.
+                        The seven classical planets are ranked from the highest
+                        degree in their respective signs to the lowest.
+                      </p>
+
+                    </div>
+
+                    {/* Planet Table */}
+                    <div className="overflow-x-auto">
+
+                      <table className="w-full min-w-[700px] text-sm">
+
+                        <thead>
+                          <tr className="border-b border-stone-800">
+
+                            <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
+                              Planet
+                            </th>
+
+                            <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
+                              Sidereal Longitude
+                            </th>
+
+                            <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
+                              Rashi
+                            </th>
+
+                            <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
+                              Degree in Sign
+                            </th>
+
+                            <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
+                              Chara Karaka
+                            </th>
+
+                          </tr>
+                        </thead>
+
+                        <tbody>
+
+                          {result?.planetaryPositions.map((planet) => {
+
+                            const karaka =
+                              result.charaKarakas.find(
+                                (item) =>
+                                  item.planet === planet.planet
+                              );
+
+                            const isNode =
+                              planet.planet === "Rahu" ||
+                              planet.planet === "Ketu";
+
+                            return (
+                              <tr
+                                key={planet.planet}
+                                className="border-b border-stone-800/70 hover:bg-white/[0.025] transition-colors"
+                              >
+
+                                {/* Planet */}
+                                <td className="px-4 py-4">
+
+                                  <div className="flex items-center gap-3">
+
+                                    <div className="w-8 h-8 rounded-full bg-stone-800 border border-stone-700 flex items-center justify-center text-[10px] font-bold text-stone-300">
+                                      {planet.planet.substring(0, 2).toUpperCase()}
+                                    </div>
+
+                                    <span className="font-medium text-white">
+                                      {planet.planet}
+                                    </span>
+
+                                  </div>
+
+                                </td>
+
+                                {/* Total longitude */}
+                                <td className="px-4 py-4">
+
+                                  <span className="font-mono text-stone-300">
+                                    {planet.siderealLongitude.toFixed(4)}°
+                                  </span>
+
+                                </td>
+
+                                {/* Rashi */}
+                                <td className="px-4 py-4">
+
+                                  <div className="flex items-center gap-2">
+
+                                    <span className="text-white font-medium">
+                                      {planet.sign}
+                                    </span>
+
+                                    <span className="text-[10px] text-stone-600 font-mono">
+                                      ({planet.signShort})
+                                    </span>
+
+                                  </div>
+
+                                </td>
+
+                                {/* Degree inside sign */}
+                                <td className="px-4 py-4">
+
+                                  <div className="flex flex-col">
+
+                                    <span className="font-mono text-amber-400 font-semibold">
+                                      {planet.formattedDegree}
+                                    </span>
+
+                                    <span className="text-[10px] text-stone-600 mt-0.5">
+                                      {planet.degreeInSign.toFixed(4)}°
+                                    </span>
+
+                                  </div>
+
+                                </td>
+
+                                {/* Chara Karaka */}
+                                <td className="px-4 py-4">
+
+                                  {karaka ? (
+
+                                    <div className="inline-flex flex-col">
+
+                                      <span className="text-amber-400 font-semibold text-xs">
+                                        {karaka.karaka}
+                                      </span>
+
+                                      <span className="text-[10px] text-stone-600">
+                                        {karaka.formattedDegree}
+                                      </span>
+
+                                    </div>
+
+                                  ) : isNode ? (
+
+                                    <span className="text-[10px] text-stone-600">
+                                      Not used in 7-Karaka
+                                    </span>
+
+                                  ) : null}
+
+                                </td>
+
+                              </tr>
+                            );
+                          })}
+
+                        </tbody>
+
+                      </table>
+
+                    </div>
+
+                    {/* Chara Karaka Ranking */}
+                    <div className="border-t border-stone-800 pt-6 space-y-4">
+
+                      <div className="flex items-center justify-between gap-3">
+
+                        <div>
+
+                          <h4 className="text-sm font-semibold text-white">
+                            Chara Karaka Ranking
+                          </h4>
+
+                          <p className="text-[11px] text-stone-500 mt-1">
+                            Highest degree in sign → lowest degree in sign
+                          </p>
+
+                        </div>
+
+                        <span className="text-[10px] uppercase tracking-widest text-amber-500 font-semibold">
+                          7 Karakas
+                        </span>
+
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+                        {result?.charaKarakas.map(
+                          (item, index) => (
+
+                            <div
+                              key={item.karaka}
+                              className={cn(
+                                "bg-stone-950 border rounded-2xl p-4 transition-all",
+                                index === 0
+                                  ? "border-amber-500/40 bg-amber-500/[0.04]"
+                                  : "border-stone-800"
+                              )}
+                            >
+
+                              <div className="flex items-center justify-between mb-3">
+
+                                <span className="text-[10px] uppercase tracking-widest text-stone-600">
+                                  #{index + 1}
+                                </span>
+
+                                {index === 0 && (
+                                  <span className="text-[9px] uppercase tracking-widest text-amber-500 font-bold">
+                                    Highest
+                                  </span>
+                                )}
+
+                              </div>
+
+                              <div className="flex items-center justify-between gap-3">
+
+                                <div>
+
+                                  <p className="text-xs text-stone-500">
+                                    {item.karaka}
+                                  </p>
+
+                                  <p className="text-base font-semibold text-white mt-1">
+                                    {item.planet}
+                                  </p>
+
+                                </div>
+
+                                <div className="text-right">
+
+                                  <p className="font-mono text-amber-400 font-semibold text-sm">
+                                    {item.formattedDegree}
+                                  </p>
+
+                                  <p className="text-[10px] text-stone-600 mt-1">
+                                    {item.sign}
+                                  </p>
+
+                                </div>
+
+                              </div>
+
+                            </div>
+
+                          )
+                        )}
+
+                      </div>
+
+                    </div>
+
+                    {/* Important note */}
+                    <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4">
+
+                      <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+
+                      <div className="space-y-1">
+
+                        <p className="text-xs font-semibold text-amber-400">
+                          Chara Karaka Method
+                        </p>
+
+                        <p className="text-[11px] leading-relaxed text-stone-500">
+                          This implementation uses the 7-Karaka scheme:
+                          Atmakaraka, Amatyakaraka, Bhratrikaraka,
+                          Matrikaraka, Putrakaraka, Gnatikaraka and
+                          Darakaraka. Rahu and Ketu are displayed in the
+                          planetary table but are not included in this
+                          7-Karaka ranking.
+                        </p>
+
+                      </div>
+
+                    </div>
+
                   </div>
 
                 </motion.div>

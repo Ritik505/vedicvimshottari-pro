@@ -8,12 +8,27 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
     },
   },
+
+  assetsInclude: [
+    '**/*.wasm',
+  ],
+
+  optimizeDeps: {
+    exclude: [
+      '@swisseph/browser',
+    ],
+  },
+
   server: {
     hmr: process.env.DISABLE_HMR !== 'true',
   },
