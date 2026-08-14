@@ -152,60 +152,87 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
           "border-stone-900"
       )}
     >
-      <button
-        type="button"
-        onClick={handleClick}
-        className="w-full px-3 sm:px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors text-left"
-      >
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div
-            className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-              active
-                ? "bg-amber-500 text-black"
-                : "bg-stone-800 text-stone-400"
-            )}
-          >
-            {period.planet
-              .substring(0, 2)
-              .toUpperCase()}
-          </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "font-medium text-sm truncate",
-                  active
-                    ? "text-white"
-                    : "text-stone-300"
-                )}
-              >
-                {period.planet}{" "}
-                <span className="text-[10px] opacity-40 font-light ml-1">
-                  {levelNames[level]}
-                </span>
-              </span>
+<button
+  type="button"
+  onClick={handleClick}
+  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-white/5 transition-colors text-left"
+>
+  {/* Planet header */}
+  <div className="flex items-center justify-between gap-3">
 
-              {active && (
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              )}
-            </div>
+    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
 
-            <p className="text-[11px] sm:text-sm text-stone-300 font-mono font-semibold truncate">
-              {period.start} — {period.end}
-            </p>
-          </div>
-        </div>
-
-        {hasSubs && (
-          expanded ? (
-            <ChevronDown className="w-4 h-4 text-stone-600 shrink-0 ml-2" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-stone-600 shrink-0 ml-2" />
-          )
+      <div
+        className={cn(
+          "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+          active
+            ? "bg-amber-500 text-black"
+            : "bg-stone-800 text-stone-400"
         )}
-      </button>
+      >
+        {period.planet
+          .substring(0, 2)
+          .toUpperCase()}
+      </div>
+
+      <div className="flex items-center gap-2 min-w-0">
+
+        <span
+  className={cn(
+    "font-semibold text-[17px] sm:text-lg",
+    active
+      ? "text-white"
+      : "text-stone-300"
+  )}
+>
+  {period.planet}
+</span>
+
+<span className="text-[14px] sm:text-sm text-stone-400 font-medium whitespace-nowrap">
+  {levelNames[level]}
+</span>
+
+  {active && (
+    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+  )}
+</div>
+
+    </div>
+
+    {hasSubs && (
+      expanded ? (
+        <ChevronDown className="w-4 h-4 text-stone-600 shrink-0" />
+      ) : (
+        <ChevronRight className="w-4 h-4 text-stone-600 shrink-0" />
+      )
+    )}
+
+  </div>
+
+  {/* Dates */}
+
+  {/* Dates */}
+<div className="mt-3 sm:mt-2 pl-10 sm:pl-11">
+
+  <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1 sm:gap-2">
+
+<span className="text-[13px] sm:text-base text-stone-200 font-mono font-semibold leading-6">
+  {period.start}
+</span>
+
+    <span className="hidden sm:inline text-stone-600">
+      -
+    </span>
+
+ <span className="text-[13px] sm:text-base text-stone-200 font-mono font-semibold leading-6">
+  {period.end}
+</span>
+
+  </div>
+
+</div>
+</button>
 
       <AnimatePresence>
         {expanded && hasSubs && (
