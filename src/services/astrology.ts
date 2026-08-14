@@ -97,11 +97,12 @@ const RASHI_SHORT_NAMES = [
 // CHARA KARAKA
 // ============================================================
 
-const CHARA_KARAKA_NAMES = [
+const CHARA_KARAKA_NAMES_8 = [
   "Atmakaraka",
   "Amatyakaraka",
   "Bhratrikaraka",
   "Matrikaraka",
+  "Pitrikaraka",
   "Putrakaraka",
   "Gnatikaraka",
   "Darakaraka",
@@ -140,7 +141,9 @@ export interface CharaKaraka {
   planet: string;
   karaka: string;
   degreeInSign: number;
+  effectiveDegree: number;
   formattedDegree: string;
+  formattedEffectiveDegree: string;
   sign: string;
 }
 
@@ -638,57 +641,57 @@ export async function calculatePlanetaryPositions(
 //
 // ============================================================
 
+
 export function calculateCharaKarakas(
   positions: PlanetaryPosition[]
 ): CharaKaraka[] {
-  const sevenPlanets =
-    positions.filter(
-      (
-        position
-      ) =>
-        [
-          "Sun",
-          "Moon",
-          "Mars",
-          "Mercury",
-          "Jupiter",
-          "Venus",
-          "Saturn",
-        ].includes(
-          position.planet
-        )
-    );
-
-  const sorted =
-    [...sevenPlanets].sort(
-      (a, b) =>
-        b.degreeInSign -
-        a.degreeInSign
-    );
-
-  return sorted.map(
-    (
-      position,
-      index
-    ) => ({
-      planet:
-        position.planet,
-
-      karaka:
-        CHARA_KARAKA_NAMES[
-          index
-        ],
-
-      degreeInSign:
-        position.degreeInSign,
-
-      formattedDegree:
-        position.formattedDegree,
-
-      sign:
-        position.sign,
-    })
+  const candidates = positions.filter(
+    (position) =>
+      [
+        "Sun",
+        "Moon",
+        "Mars",
+        "Mercury",
+        "Jupiter",
+        "Venus",
+        "Saturn",
+        "Rahu",
+      ].includes(position.planet)
   );
+
+  const ranked = candidates.map((position) => {
+    const effectiveDegree =
+      position.planet === "Rahu"
+        ? 30 - position.degreeInSign
+        : position.degreeInSign;
+
+    return {
+      position,
+      effectiveDegree,
+    };
+  });
+
+  ranked.sort(
+    (a, b) =>
+      b.effectiveDegree - a.effectiveDegree
+  );
+
+  return ranked.map((item, index) => {
+    const effectiveFormatted = formatDegree(
+      item.effectiveDegree
+    );
+
+    return {
+      planet: item.position.planet,
+      karaka: CHARA_KARAKA_NAMES_8[index],
+      degreeInSign: item.position.degreeInSign,
+      effectiveDegree: item.effectiveDegree,
+      formattedDegree: item.position.formattedDegree,
+      formattedEffectiveDegree:
+        effectiveFormatted.formattedDegree,
+      sign: item.position.sign,
+    };
+  });
 }
 
 // ============================================================

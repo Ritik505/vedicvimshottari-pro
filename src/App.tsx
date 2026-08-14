@@ -885,8 +885,6 @@ Thank you!`
                           {" "}degree within the sign
                         </span>
                         {" "}rather than the planet's total 0°–360° longitude.
-                        The seven classical planets are ranked from the highest
-                        degree in their respective signs to the lowest.
                       </p>
 
                     </div>
@@ -1057,7 +1055,7 @@ Thank you!`
                         </div>
 
                         <span className="text-[10px] uppercase tracking-widest text-amber-500 font-semibold">
-                          7 Karakas
+                          8 Karakas
                         </span>
 
                       </div>
@@ -1107,15 +1105,21 @@ Thank you!`
 
                                 <div className="text-right">
 
-                                  <p className="font-mono text-amber-400 font-semibold text-sm">
-                                    {item.formattedDegree}
-                                  </p>
+  <p className="font-mono text-amber-400 font-semibold text-sm">
+    {item.formattedDegree}
+  </p>
 
-                                  <p className="text-[10px] text-stone-600 mt-1">
-                                    {item.sign}
-                                  </p>
+  {item.planet === "Rahu" && (
+    <p className="text-[9px] text-stone-600 mt-1">
+      CK value: {item.formattedEffectiveDegree}
+    </p>
+  )}
 
-                                </div>
+  <p className="text-[10px] text-stone-600 mt-1">
+    {item.sign}
+  </p>
+
+</div>
 
                               </div>
 
@@ -1140,12 +1144,7 @@ Thank you!`
                         </p>
 
                         <p className="text-[11px] leading-relaxed text-stone-500">
-                          This implementation uses the 7-Karaka scheme:
-                          Atmakaraka, Amatyakaraka, Bhratrikaraka,
-                          Matrikaraka, Putrakaraka, Gnatikaraka and
-                          Darakaraka. Rahu and Ketu are displayed in the
-                          planetary table but are not included in this
-                          7-Karaka ranking.
+                          Chara Karaka Ranking — 8 Karakas
                         </p>
 
                       </div>
