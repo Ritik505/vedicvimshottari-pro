@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar, 
@@ -34,6 +34,7 @@ import {
   calculateCharaKarakas,
   type PlanetaryPosition,
   type CharaKaraka,
+  type LunarNodeType,
 } from './services/astrology';
 
 function cn(...inputs: ClassValue[]) {
@@ -171,6 +172,8 @@ export default function App() {
   const [tob, setTob] = useState('12:00:00');
   const [location, setLocation] = useState('New Delhi, India');
   const [timezone, setTimezone] = useState('Asia/Kolkata');
+  const [nodeType, setNodeType] =
+  useState<LunarNodeType>("true");
   const [targetAge, setTargetAge] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
@@ -257,11 +260,13 @@ Thank you!`
     // --------------------------------------------------
 
     const planetaryPositions =
-      await calculatePlanetaryPositions(
-        dob,
-        tob,
-        timezone
-      );
+  await calculatePlanetaryPositions(
+    dob,
+    tob,
+    timezone,
+    nodeType
+  );
+
 
     // --------------------------------------------------
     // Jaimini Chara Karakas
@@ -852,29 +857,87 @@ Thank you!`
                   <div className="bg-stone-900/80 border border-stone-800 p-6 rounded-3xl space-y-6">
 
                     {/* Header */}
-                    <div className="flex flex-wrap items-center justify-between gap-3">
 
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-amber-500" />
+            
+<div className="flex flex-wrap items-center justify-between gap-4">
 
-                        <div>
-                          <h3 className="text-base font-semibold text-white">
-                            Planetary Degrees
-                          </h3>
+  {/* Title */}
+  <div className="flex items-center gap-2">
+    <Sparkles className="w-5 h-5 text-amber-500" />
 
-                          <p className="text-[11px] text-stone-500 mt-0.5">
-                            Sidereal positions for Jaimini Chara Karaka analysis
-                          </p>
-                        </div>
-                      </div>
+    <div>
+      <h3 className="text-base font-semibold text-white">
+        Planetary Degrees
+      </h3>
 
-                      <div className="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-                        <span className="text-[10px] uppercase tracking-widest text-amber-400 font-semibold">
-                          Lahiri Sidereal
-                        </span>
-                      </div>
+      <p className="text-[11px] text-stone-500 mt-0.5">
+        Sidereal positions for Jaimini Chara Karaka analysis
+      </p>
+    </div>
+  </div>
 
-                    </div>
+  {/* Controls */}
+  <div className="flex flex-wrap items-center gap-3">
+
+    {/* Lahiri */}
+    <div className="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+      <span className="text-[10px] uppercase tracking-widest text-amber-400 font-semibold">
+        Lahiri Sidereal
+      </span>
+    </div>
+
+    {/* Lunar Node */}
+    <div className="flex items-center gap-2">
+
+      <span className="text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
+        Lunar Node
+      </span>
+
+      <div className="flex rounded-xl border border-stone-800 bg-stone-950 p-1">
+
+        <button
+          type="button"
+          onClick={() => {
+            setNodeType("mean");
+            setResult(null);
+          }}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all",
+            nodeType === "mean"
+              ? "bg-stone-800 text-white"
+              : "text-stone-500 hover:text-stone-300"
+          )}
+        >
+          Mean Node
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setNodeType("true");
+            setResult(null);
+          }}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all",
+            nodeType === "true"
+              ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+              : "text-stone-500 hover:text-stone-300"
+          )}
+        >
+          True Node
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+                    
+
+
 
                     {/* Explanation */}
                     <div className="bg-stone-950 border border-stone-800 rounded-2xl p-4">

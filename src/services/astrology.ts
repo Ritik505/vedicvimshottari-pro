@@ -6,6 +6,7 @@ import {
   SiderealMode,
   CalculationFlag,
 } from "@swisseph/browser";
+export type LunarNodeType = "mean" | "true";
 
 // ============================================================
 // VIMSHOTTARI DASHA
@@ -514,7 +515,8 @@ const SIDEREAL_FLAGS =
 export async function calculatePlanetaryPositions(
   dateStr: string,
   timeStr: string,
-  timezone: string
+  timezone: string,
+  nodeType: LunarNodeType = "true"
 ): Promise<PlanetaryPosition[]> {
   const engine =
     await getSwissEphemeris();
@@ -583,12 +585,18 @@ export async function calculatePlanetaryPositions(
    * We deliberately do NOT calculate Rahu using a homemade
    * polynomial. Swiss Ephemeris calculates the node.
    */
-  const rahuPosition =
-    engine.calculatePosition(
-      jd,
-      LunarPoint.MeanNode,
-      SIDEREAL_FLAGS
-    );
+
+  const rahuPoint =
+  nodeType === "true"
+    ? LunarPoint.TrueNode
+    : LunarPoint.MeanNode;
+
+const rahuPosition =
+  engine.calculatePosition(
+    jd,
+    rahuPoint,
+    SIDEREAL_FLAGS
+  );
 
   positions.push(
     buildPlanetPosition(
