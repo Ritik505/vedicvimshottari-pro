@@ -5,6 +5,7 @@ import {
   LunarPoint,
   SiderealMode,
   CalculationFlag,
+  HouseSystem,
 } from "@swisseph/browser";
 export type LunarNodeType = "mean" | "true";
 
@@ -146,6 +147,35 @@ export interface CharaKaraka {
   formattedDegree: string;
   formattedEffectiveDegree: string;
   sign: string;
+}
+
+export interface KundliPlanet {
+  planet: string;
+  house: number;
+  sign: string;
+  signShort: string;
+  signIndex: number;
+  degreeInSign: number;
+  formattedDegree: string;
+}
+
+export interface KundliHouse {
+  house: number;
+  sign: string;
+  signShort: string;
+  signIndex: number;
+  planets: string[];
+}
+
+export interface KundliData {
+  ascendantLongitude: number;
+  ascendantSignIndex: number;
+  ascendantSign: string;
+  ascendantSignShort: string;
+  ascendantDegree: number;
+  ascendantFormattedDegree: string;
+  houses: KundliHouse[];
+  planets: KundliPlanet[];
 }
 
 // ============================================================
@@ -628,6 +658,195 @@ const rahuPosition =
   );
 
   return positions;
+}
+
+// ============================================================
+// LAGNA KUNDLI / D1 RASHI CHART
+// ============================================================
+//
+// Uses the same Swiss Ephemeris instance and the same Lahiri
+// sidereal planetary positions as the rest of the application.
+//
+// House model:
+// - Whole Sign houses
+// - House 1 = Ascendant sign
+// - Each following house advances one Rashi
+//
+// Swiss Ephemeris returns the Ascendant in tropical longitude
+// from calculateHouses(), so we convert that Ascendant to Lahiri
+// sidereal longitude using the exact ayanamsa for the birth JD.
+//
+// This is a D1/Rashi chart representation, not a Bhava Chalit chart.
+// ============================================================
+
+export async function calculateKundli(
+  dateStr: string,
+  timeStr: string,
+  timezone: string,
+  latitude: number,
+  longitude: number,
+  nodeType: LunarNodeType = "true"
+): Promise<KundliData> {
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    throw new Error("Invalid latitude. Latitude must be between -90 and 90.");
+  }
+
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new Error("Invalid longitude. Longitude must be between -180 and 180.");
+  }
+
+  const engine = await getSwissEphemeris();
+
+  const { jd } = getJulianDay(
+    dateStr,
+    timeStr,
+    timezone
+  );
+
+  engine.setSiderealMode(
+    SiderealMode.Lahiri
+  );
+
+  const ayanamsa =
+    engine.getAyanamsa(jd);
+
+  // calculateHouses() returns the geometric/tropical Ascendant.
+  const houses =
+    engine.calculateHouses(
+      jd,
+      latitude,
+      longitude,
+      HouseSystem.WholeSign
+    );
+
+  const ascendantSidereal =
+    normalizeDegrees(
+      houses.ascendant -
+        ayanamsa
+    );
+
+  const ascendant =
+    getRashiFromLongitude(
+      ascendantSidereal
+    );
+
+  // Reuse the same geocentric sidereal planetary calculation
+  // already used by Planetary Degrees and Chara Karakas.
+  const planetaryPositions =
+    await calculatePlanetaryPositions(
+      dateStr,
+      timeStr,
+      timezone,
+      nodeType
+    );
+
+  const kundliPlanets:
+    KundliPlanet[] =
+    planetaryPositions.map(
+      (position) => {
+        // Whole-sign house:
+        // Ascendant sign = House 1.
+        const house =
+          (
+            position.signIndex -
+            ascendant.signIndex +
+            12
+          ) % 12 + 1;
+
+        return {
+          planet:
+            position.planet,
+
+          house,
+
+          sign:
+            position.sign,
+
+          signShort:
+            position.signShort,
+
+          signIndex:
+            position.signIndex,
+
+          degreeInSign:
+            position.degreeInSign,
+
+          formattedDegree:
+            position.formattedDegree,
+        };
+      }
+    );
+
+  const kundliHouses:
+    KundliHouse[] =
+    Array.from(
+      { length: 12 },
+      (_, index) => {
+        const houseNumber =
+          index + 1;
+
+        const signIndex =
+          (
+            ascendant.signIndex +
+            index
+          ) % 12;
+
+        return {
+          house:
+            houseNumber,
+
+          sign:
+            RASHI_NAMES[
+              signIndex
+            ],
+
+          signShort:
+            RASHI_SHORT_NAMES[
+              signIndex
+            ],
+
+          signIndex,
+
+          planets:
+            kundliPlanets
+              .filter(
+                (planet) =>
+                  planet.house ===
+                  houseNumber
+              )
+              .map(
+                (planet) =>
+                  planet.planet
+              ),
+        };
+      }
+    );
+
+  return {
+    ascendantLongitude:
+      ascendantSidereal,
+
+    ascendantSignIndex:
+      ascendant.signIndex,
+
+    ascendantSign:
+      ascendant.sign,
+
+    ascendantSignShort:
+      ascendant.signShort,
+
+    ascendantDegree:
+      ascendant.degreeInSign,
+
+    ascendantFormattedDegree:
+      ascendant.formattedDegree,
+
+    houses:
+      kundliHouses,
+
+    planets:
+      kundliPlanets,
+  };
 }
 
 // ============================================================

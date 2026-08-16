@@ -32,9 +32,11 @@ import {
   calculateDasha,
   generateDashaHierarchy,
   calculatePlanetaryPositions,
+  calculateKundli,
   calculateCharaKarakas,
   type PlanetaryPosition,
   type CharaKaraka,
+  type KundliData,
   type LunarNodeType,
 } from "./services/astrology";
 
@@ -75,6 +77,717 @@ interface AgeAntardashaMatch {
 }
 
 // ============================================================
+// KUNDLI HELPERS
+// ============================================================
+
+const PLANET_ABBREVIATIONS: Record<string, string> = {
+  Sun: "Su",
+  Moon: "Mo",
+  Mars: "Ma",
+  Mercury: "Me",
+  Jupiter: "Ju",
+  Venus: "Ve",
+  Saturn: "Sa",
+  Rahu: "Ra",
+  Ketu: "Ke",
+};
+
+function getPlanetAbbreviation(planet: string): string {
+  return PLANET_ABBREVIATIONS[planet] || planet.substring(0, 2);
+}
+
+// ============================================================
+// RASHI NUMBER MAPPING
+// ============================================================
+
+const RASHI_NUMBERS: Record<string, number> = {
+  Aries: 1,
+  Taurus: 2,
+  Gemini: 3,
+  Cancer: 4,
+  Leo: 5,
+  Virgo: 6,
+  Libra: 7,
+  Scorpio: 8,
+  Sagittarius: 9,
+  Capricorn: 10,
+  Aquarius: 11,
+  Pisces: 12,
+};
+
+function getRashiNumber(sign: string): number | string {
+  return RASHI_NUMBERS[sign] ?? sign;
+}
+
+// ============================================================
+// TRADITIONAL NORTH INDIAN KUNDLI GEOMETRY
+//
+// Correct North Indian house arrangement:
+//
+//                    1
+//              2           12
+//           3                 11
+//           4                 10
+//           5                  9
+//              6           8
+//                    7
+//
+// IMPORTANT:
+// House positions are FIXED.
+// Rashi numbers move according to the Lagna.
+//
+// There is NO additional inner diamond.
+// ============================================================
+
+const NORTH_INDIAN_HOUSE_POLYGONS: Record<number, string> = {
+  // 1st House — Top center
+  1: "50,0 75,25 50,50 25,25",
+
+  // 2nd House — Upper left
+  2: "0,0 50,0 25,25",
+
+  // 3rd House — Left upper
+  3: "0,0 0,50 25,25",
+
+  // 4th House — Left center
+  4: "0,50 25,25 50,50 25,75",
+
+  // 5th House — Left lower
+  5: "0,50 0,100 25,75",
+
+  // 6th House — Bottom left
+  6: "0,100 50,100 25,75",
+
+  // 7th House — Bottom center
+  7: "50,100 75,75 50,50 25,75",
+
+  // 8th House — Bottom right
+  8: "50,100 100,100 75,75",
+
+  // 9th House — Right lower
+  9: "100,50 100,100 75,75",
+
+  // 10th House — Right center
+  10: "100,50 75,25 50,50 75,75",
+
+  // 11th House — Right upper
+  11: "100,0 100,50 75,25",
+
+  // 12th House — Upper right
+  12: "50,0 100,0 75,25",
+};
+
+// ============================================================
+// TEXT POSITIONS
+// ============================================================
+
+const NORTH_INDIAN_TEXT_POSITIONS: Record<
+  number,
+  { x: number; y: number }
+> = {
+  // 1st House — Top center
+  1: { x: 50, y: 20 },
+
+  // 2nd House — Upper left
+  2: { x: 32, y: 12 },
+
+  // 3rd House — Left upper
+  3: { x: 13, y: 25 },
+
+  // 4th House — Left center
+  4: { x: 18, y: 50 },
+
+  // 5th House — Left lower
+  5: { x: 13, y: 75 },
+
+  // 6th House — Bottom left
+  6: { x: 32, y: 88 },
+
+  // 7th House — Bottom center
+  7: { x: 50, y: 80 },
+
+  // 8th House — Bottom right
+  8: { x: 68, y: 88 },
+
+  // 9th House — Right lower
+  9: { x: 87, y: 75 },
+
+  // 10th House — Right center
+  10: { x: 82, y: 50 },
+
+  // 11th House — Right upper
+  11: { x: 87, y: 25 },
+
+  // 12th House — Upper right
+  12: { x: 68, y: 12 },
+};
+
+// ============================================================
+// PLANET COLORS
+// ============================================================
+
+const PLANET_COLORS: Record<string, string> = {
+  Sun: "#8B2F2F",
+  Moon: "#2F5D8A",
+  Mars: "#A9342C",
+  Mercury: "#2E7758",
+  Jupiter: "#9A6B21",
+  Venus: "#9B4D73",
+  Saturn: "#4D5666",
+  Rahu: "#6C4B8B",
+  Ketu: "#6A5A4A",
+};
+
+function getPlanetColor(planet: string): string {
+  return PLANET_COLORS[planet] || "#624B38";
+}
+
+// ============================================================
+// HOUSE MAPPING
+// ============================================================
+
+function getVisibleHouseNatalHouse(
+  visibleHouse: number,
+  startNatalHouse: number
+): number {
+  return (
+    ((startNatalHouse - 1 + visibleHouse - 1) % 12) + 1
+  );
+}
+
+// ============================================================
+// NORTH INDIAN HOUSE LABEL
+// ============================================================
+
+function NorthIndianHouseLabel({
+  houseNumber,
+  natalHouseNumber,
+  rashiNumber,
+  planets,
+  selected,
+  currentLagna,
+}: {
+  houseNumber: number;
+  natalHouseNumber: number;
+  rashiNumber: number | string;
+  planets: string[];
+  selected: boolean;
+  currentLagna: boolean;
+}) {
+  const position =
+    NORTH_INDIAN_TEXT_POSITIONS[houseNumber];
+
+  return (
+    <div
+      className="absolute z-10 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none select-none"
+      style={{
+        left: `${position.x}%`,
+        top: `${position.y}%`,
+        width: "24%",
+      }}
+    >
+      {/* House number */}
+
+      <div className="text-[8px] sm:text-[9px] font-bold text-[#6B5A44]">
+        H{houseNumber}
+      </div>
+
+      {/* Rashi number */}
+
+      <div className="text-[10px] sm:text-xs font-extrabold text-[#1F647B] mt-0.5">
+        {rashiNumber}
+      </div>
+
+      {/* Planets */}
+
+      <div className="mt-1 flex flex-wrap justify-center gap-x-1.5 gap-y-1">
+        {planets.length > 0 ? (
+          planets.map((planet) => (
+            <span
+              key={planet}
+              className="text-[11px] sm:text-sm font-extrabold leading-none"
+              style={{
+                color: getPlanetColor(planet),
+              }}
+            >
+              {getPlanetAbbreviation(planet)}
+            </span>
+          ))
+        ) : (
+          <span className="text-[8px] sm:text-[9px] text-[#A39278]">
+            —
+          </span>
+        )}
+      </div>
+
+      {/* Lagna badge */}
+
+      {currentLagna && (
+        <div className="mt-1 inline-block rounded-full bg-[#8B2F2F]/10 px-1.5 py-0.5 text-[7px] sm:text-[8px] font-bold uppercase tracking-wider text-[#8B2F2F]">
+          Lagna
+        </div>
+      )}
+
+      {/* Natal house when derived */}
+
+      {natalHouseNumber !== houseNumber && (
+        <div className="mt-0.5 text-[7px] sm:text-[8px] font-medium text-[#89765A]">
+          Natal H{natalHouseNumber}
+        </div>
+      )}
+
+      {/* Selection */}
+
+      {selected && (
+        <div className="mt-1 text-[7px] sm:text-[8px] font-bold uppercase tracking-wider text-[#8B2F2F]">
+          Selected
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// D1 KUNDLI CHART
+// ============================================================
+
+function D1KundliChart({
+  kundli,
+}: {
+  kundli: KundliData;
+}) {
+  const [startNatalHouse, setStartNatalHouse] =
+    useState(1);
+
+  const [selectedVisibleHouse, setSelectedVisibleHouse] =
+    useState<number | null>(null);
+
+  const derivedView =
+    startNatalHouse !== 1;
+
+  const selectedNatalHouse =
+    selectedVisibleHouse === null
+      ? null
+      : getVisibleHouseNatalHouse(
+          selectedVisibleHouse,
+          startNatalHouse
+        );
+
+  const selectedHouseData =
+    selectedNatalHouse === null
+      ? null
+      : kundli.houses.find(
+          (house) =>
+            house.house === selectedNatalHouse
+        );
+
+  const currentLagnaHouse =
+    kundli.houses.find(
+      (house) =>
+        house.house === startNatalHouse
+    );
+
+  const applySelectedHouseAsLagna = () => {
+    if (
+      selectedVisibleHouse === null ||
+      selectedNatalHouse === null
+    ) {
+      return;
+    }
+
+    setStartNatalHouse(selectedNatalHouse);
+    setSelectedVisibleHouse(null);
+  };
+
+  const restoreOriginalLagna = () => {
+    setStartNatalHouse(1);
+    setSelectedVisibleHouse(null);
+  };
+
+  return (
+    <div className="space-y-4">
+
+      {/* ======================================================
+          TRADITIONAL NORTH INDIAN DIAMOND CHART
+      ====================================================== */}
+
+      <div className="relative w-full max-w-[620px] mx-auto">
+
+        <div className="relative aspect-square overflow-hidden rounded-sm border-[3px] border-[#765535] bg-[#F2E5CF] shadow-[0_12px_35px_rgba(78,51,26,0.18)]">
+
+          <svg
+            viewBox="0 0 100 100"
+            className="absolute inset-0 h-full w-full"
+            role="img"
+            aria-label="Traditional North Indian style D1 Rashi chart"
+          >
+
+            {/* ==================================================
+                PAPER BACKGROUND
+            ================================================== */}
+
+            <rect
+              x="0"
+              y="0"
+              width="100"
+              height="100"
+              fill="#F2E5CF"
+            />
+
+            {/* ==================================================
+                OUTER SQUARE
+            ================================================== */}
+
+            <rect
+              x="1"
+              y="1"
+              width="98"
+              height="98"
+              fill="none"
+              stroke="#765535"
+              strokeWidth="0.85"
+            />
+
+            {/* ==================================================
+                MAIN NORTH INDIAN DIAMOND
+            ================================================== */}
+
+            <polygon
+              points="50,1 99,50 50,99 1,50"
+              fill="#F5EAD7"
+              stroke="#765535"
+              strokeWidth="0.85"
+            />
+
+            {/* ==================================================
+                CORNER → CENTER DIAGONALS
+            ================================================== */}
+
+            <line
+              x1="1"
+              y1="1"
+              x2="50"
+              y2="50"
+              stroke="#765535"
+              strokeWidth="0.85"
+            />
+
+            <line
+              x1="99"
+              y1="1"
+              x2="50"
+              y2="50"
+              stroke="#765535"
+              strokeWidth="0.85"
+            />
+
+            <line
+              x1="99"
+              y1="99"
+              x2="50"
+              y2="50"
+              stroke="#765535"
+              strokeWidth="0.85"
+            />
+
+            <line
+              x1="1"
+              y1="99"
+              x2="50"
+              y2="50"
+              stroke="#765535"
+              strokeWidth="0.85"
+            />
+
+            {/* ==================================================
+                CLICKABLE HOUSE REGIONS
+            ================================================== */}
+
+            {Array.from(
+              { length: 12 },
+              (_, index) => {
+                const visibleHouse = index + 1;
+
+                const natalHouse =
+                  getVisibleHouseNatalHouse(
+                    visibleHouse,
+                    startNatalHouse
+                  );
+
+                const isSelected =
+                  selectedVisibleHouse ===
+                  visibleHouse;
+
+                return (
+                  <polygon
+                    key={visibleHouse}
+                    points={
+                      NORTH_INDIAN_HOUSE_POLYGONS[
+                        visibleHouse
+                      ]
+                    }
+                    fill={
+                      isSelected
+                        ? "#B8893F"
+                        : "transparent"
+                    }
+                    fillOpacity={
+                      isSelected
+                        ? 0.24
+                        : 0
+                    }
+                    stroke={
+                      isSelected
+                        ? "#8B2F2F"
+                        : "transparent"
+                    }
+                    strokeWidth={
+                      isSelected
+                        ? 0.9
+                        : 0
+                    }
+                    className="cursor-pointer"
+                    onClick={() =>
+                      setSelectedVisibleHouse(
+                        visibleHouse
+                      )
+                    }
+                    onMouseEnter={(event) => {
+                      if (!isSelected) {
+                        event.currentTarget.setAttribute(
+                          "fill",
+                          "#B8893F"
+                        );
+
+                        event.currentTarget.setAttribute(
+                          "fill-opacity",
+                          "0.09"
+                        );
+                      }
+                    }}
+                    onMouseLeave={(event) => {
+                      if (!isSelected) {
+                        event.currentTarget.setAttribute(
+                          "fill",
+                          "transparent"
+                        );
+
+                        event.currentTarget.setAttribute(
+                          "fill-opacity",
+                          "0"
+                        );
+                      }
+                    }}
+                    aria-label={`House ${visibleHouse}, natal house ${natalHouse}`}
+                  />
+                );
+              }
+            )}
+
+          </svg>
+
+          {/* ==================================================
+              HOUSE TEXT / PLANETS
+          ================================================== */}
+
+          {Array.from(
+            { length: 12 },
+            (_, index) => {
+              const visibleHouse = index + 1;
+
+              const natalHouse =
+                getVisibleHouseNatalHouse(
+                  visibleHouse,
+                  startNatalHouse
+                );
+
+              const house =
+                kundli.houses.find(
+                  (item) =>
+                    item.house === natalHouse
+                );
+
+              if (!house) {
+                return null;
+              }
+
+              return (
+                <NorthIndianHouseLabel
+                  key={visibleHouse}
+                  houseNumber={visibleHouse}
+                  natalHouseNumber={natalHouse}
+                  rashiNumber={getRashiNumber(
+                    house.sign
+                  )}
+                  planets={house.planets}
+                  selected={
+                    selectedVisibleHouse ===
+                    visibleHouse
+                  }
+                  currentLagna={
+                    visibleHouse === 1
+                  }
+                />
+              );
+            }
+          )}
+
+          {/* ==================================================
+              CENTER LAGNA LABEL
+          ================================================== */}
+
+          <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none select-none">
+
+            <div className="text-[8px] sm:text-[9px] uppercase tracking-[0.18em] font-bold text-[#765535]">
+              {derivedView
+                ? "Derived Lagna"
+                : "Lagna"}
+            </div>
+
+            <div className="text-lg sm:text-2xl font-extrabold text-[#8B2F2F]">
+              {currentLagnaHouse
+                ? getRashiNumber(
+                    currentLagnaHouse.sign
+                  )
+                : ""}
+            </div>
+
+            <div className="mt-0.5 font-mono text-[9px] sm:text-[10px] font-semibold text-[#2F5D8A]">
+              {derivedView
+                ? `Natal H${startNatalHouse}`
+                : kundli.ascendantFormattedDegree}
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ======================================================
+          HOUSE SELECTION / DERIVED LAGNA CONTROLS
+      ====================================================== */}
+
+      <div className="rounded-2xl border border-[#B89A70] bg-[#F7EBD8] p-3 sm:p-4">
+
+        {selectedVisibleHouse !== null ? (
+
+          <div className="space-y-3">
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+
+              <div>
+
+                <p className="text-[10px] uppercase tracking-[0.16em] font-bold text-[#765535]">
+                  House Selected
+                </p>
+
+                <p className="mt-1 text-sm sm:text-base font-extrabold text-[#542F28]">
+
+                  House{" "}
+                  {selectedVisibleHouse}
+                  {" · Rashi "}
+                  {selectedHouseData
+                    ? getRashiNumber(
+                        selectedHouseData.sign
+                      )
+                    : ""}
+
+                  {selectedNatalHouse !==
+                    selectedVisibleHouse && (
+                    <span className="text-xs font-semibold text-[#83705A]">
+                      {" · Natal H"}
+                      {selectedNatalHouse}
+                    </span>
+                  )}
+
+                </p>
+
+              </div>
+
+              <p className="text-[11px] text-[#7D6A54]">
+                This selection is the house you clicked.
+              </p>
+
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+
+              <button
+                type="button"
+                disabled={
+                  selectedVisibleHouse === 1
+                }
+                onClick={
+                  applySelectedHouseAsLagna
+                }
+                className={cn(
+                  "flex-1 rounded-xl px-4 py-3 text-sm font-extrabold transition-all",
+                  selectedVisibleHouse === 1
+                    ? "cursor-not-allowed bg-[#E3D4BC] text-[#9B896F]"
+                    : "bg-[#8B2F2F] text-[#FFF8ED] hover:bg-[#722525] shadow-sm"
+                )}
+              >
+                {selectedVisibleHouse === 1
+                  ? "House 1 is already the Lagna"
+                  : `Start Kundli from House ${selectedVisibleHouse}`}
+              </button>
+
+              {derivedView && (
+                <button
+                  type="button"
+                  onClick={
+                    restoreOriginalLagna
+                  }
+                  className="rounded-xl border border-[#8B2F2F]/40 bg-[#FFF9EF] px-4 py-3 text-sm font-extrabold text-[#7A302D] hover:bg-white transition-all"
+                >
+                  Back to Original Lagna Kundli
+                </button>
+              )}
+
+            </div>
+
+          </div>
+
+        ) : (
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+            <div>
+
+              <p className="text-[10px] uppercase tracking-[0.16em] font-bold text-[#765535]">
+                Interactive Kundli
+              </p>
+
+              <p className="mt-1 text-sm text-[#66513B]">
+                Click anywhere inside a house to select it.
+              </p>
+
+            </div>
+
+            {derivedView && (
+              <button
+                type="button"
+                onClick={
+                  restoreOriginalLagna
+                }
+                className="rounded-xl border border-[#8B2F2F]/40 bg-[#FFF9EF] px-4 py-2.5 text-sm font-extrabold text-[#7A302D] hover:bg-white transition-all"
+              >
+                Back to Original Lagna Kundli
+              </button>
+            )}
+
+          </div>
+
+        )}
+
+      </div>
+
+    </div>
+  );
+}
+
+// ============================================================
 // PLANETARY MATURITY AGES
 // ============================================================
 
@@ -101,7 +814,8 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
   onPathSelect,
   ancestors = [],
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] =
+    useState(false);
 
   const active = isCurrent(
     period.start,
@@ -152,90 +866,90 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
           "border-stone-900"
       )}
     >
-
-<button
-  type="button"
-  onClick={handleClick}
-  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-white/5 transition-colors text-left"
->
-  {/* Planet header */}
-  <div className="flex items-center justify-between gap-3">
-
-    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-
-      <div
-        className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-          active
-            ? "bg-amber-500 text-black"
-            : "bg-stone-800 text-stone-400"
-        )}
+      <button
+        type="button"
+        onClick={handleClick}
+        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-white/5 transition-colors text-left"
       >
-        {period.planet
-          .substring(0, 2)
-          .toUpperCase()}
-      </div>
 
-      <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center justify-between gap-3">
 
-        <span
-  className={cn(
-    "font-semibold text-[17px] sm:text-lg",
-    active
-      ? "text-white"
-      : "text-stone-300"
-  )}
->
-  {period.planet}
-</span>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
 
-<span className="text-[14px] sm:text-sm text-stone-400 font-medium whitespace-nowrap">
-  {levelNames[level]}
-</span>
+            <div
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                active
+                  ? "bg-amber-500 text-black"
+                  : "bg-stone-800 text-stone-400"
+              )}
+            >
+              {period.planet
+                .substring(0, 2)
+                .toUpperCase()}
+            </div>
 
-  {active && (
-    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-  )}
-</div>
+            <div className="flex items-center gap-2 min-w-0">
 
-    </div>
+              <span
+                className={cn(
+                  "font-semibold text-[17px] sm:text-lg",
+                  active
+                    ? "text-white"
+                    : "text-stone-300"
+                )}
+              >
+                {period.planet}
+              </span>
 
-    {hasSubs && (
-      expanded ? (
-        <ChevronDown className="w-4 h-4 text-stone-600 shrink-0" />
-      ) : (
-        <ChevronRight className="w-4 h-4 text-stone-600 shrink-0" />
-      )
-    )}
+              <span className="text-[14px] sm:text-sm text-stone-400 font-medium whitespace-nowrap">
+                {levelNames[level]}
+              </span>
 
-  </div>
+              {active && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              )}
 
-  {/* Dates */}
+            </div>
 
-  {/* Dates */}
-<div className="mt-3 sm:mt-2 pl-10 sm:pl-11">
+          </div>
 
-  <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1 sm:gap-2">
+          {hasSubs && (
+            expanded ? (
+              <ChevronDown className="w-4 h-4 text-stone-600 shrink-0" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-stone-600 shrink-0" />
+            )
+          )}
 
-<span className="text-[13px] sm:text-base text-stone-200 font-mono font-semibold leading-6">
-  {period.start}
-</span>
+        </div>
 
-    <span className="hidden sm:inline text-stone-600">
-      -
-    </span>
+        <div className="mt-3 sm:mt-2 pl-10 sm:pl-11">
 
- <span className="text-[13px] sm:text-base text-stone-200 font-mono font-semibold leading-6">
-  {period.end}
-</span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1 sm:gap-2">
 
-  </div>
+            <span className="text-[13px] sm:text-base text-stone-200 font-mono font-semibold leading-6">
+              {period.start}
+            </span>
 
-</div>
-</button>
+            <span className="hidden sm:inline text-stone-600">
+              -
+            </span>
+
+            <span className="text-[13px] sm:text-base text-stone-200 font-mono font-semibold leading-6">
+              {period.end}
+            </span>
+
+          </div>
+
+        </div>
+
+      </button>
 
       <AnimatePresence>
+
         {expanded && hasSubs && (
+
           <motion.div
             initial={{
               height: 0,
@@ -251,6 +965,7 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
             }}
             className="px-2 sm:px-3 pb-3 pt-1 border-t border-stone-800/50"
           >
+
             {period.subDashas?.map(
               (sub, idx) => (
                 <DashaLevel
@@ -266,9 +981,13 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
                 />
               )
             )}
+
           </motion.div>
+
         )}
+
       </AnimatePresence>
+
     </div>
   );
 };
@@ -290,6 +1009,12 @@ export default function App() {
   const [timezone, setTimezone] =
     useState("Asia/Kolkata");
 
+  const [latitude, setLatitude] =
+    useState("28.6139");
+
+  const [longitude, setLongitude] =
+    useState("77.2090");
+
   const [targetAge, setTargetAge] =
     useState("");
 
@@ -305,6 +1030,7 @@ export default function App() {
       dashas: DashaPeriod[];
       planetaryPositions: PlanetaryPosition[];
       charaKarakas: CharaKaraka[];
+      kundli: KundliData;
     } | null>(null);
 
   const [error, setError] =
@@ -408,56 +1134,67 @@ Thank you!`
   // CALCULATE
   // ==========================================================
 
-const handleCalculate = async (
-  selectedNodeType: LunarNodeType = nodeType
-) => {
-  setLoading(true);
-  setError(null);
-  setSelectedPath([]);
-  setAgeDashaResult(null);
+  const handleCalculate = async (
+    selectedNodeType: LunarNodeType = nodeType
+  ) => {
+    setLoading(true);
+    setError(null);
+    setSelectedPath([]);
+    setAgeDashaResult(null);
 
-  try {
-    const dashaInfo =
-      await calculateDasha(
-        dob,
-        tob,
-        timezone
+    try {
+      const dashaInfo =
+        await calculateDasha(
+          dob,
+          tob,
+          timezone
+        );
+
+      const hierarchy =
+        generateDashaHierarchy(
+          dashaInfo.birthJD,
+          dashaInfo
+        );
+
+      const planetaryPositions =
+        await calculatePlanetaryPositions(
+          dob,
+          tob,
+          timezone,
+          selectedNodeType
+        );
+
+      const charaKarakas =
+        calculateCharaKarakas(
+          planetaryPositions
+        );
+
+      const kundli =
+        await calculateKundli(
+          dob,
+          tob,
+          timezone,
+          Number(latitude),
+          Number(longitude),
+          selectedNodeType
+        );
+
+      setResult({
+        info: dashaInfo,
+        dashas: hierarchy,
+        planetaryPositions,
+        charaKarakas,
+        kundli,
+      });
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Calculation failed."
       );
-
-    const hierarchy =
-      generateDashaHierarchy(
-        dashaInfo.birthJD,
-        dashaInfo
-      );
-
-    const planetaryPositions =
-      await calculatePlanetaryPositions(
-        dob,
-        tob,
-        timezone,
-        selectedNodeType
-      );
-
-    const charaKarakas =
-      calculateCharaKarakas(
-        planetaryPositions
-      );
-
-    setResult({
-      info: dashaInfo,
-      dashas: hierarchy,
-      planetaryPositions,
-      charaKarakas,
-    });
-  } catch (err: any) {
-    setError(
-      err?.message ||
-        "Calculation failed."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ==========================================================
   // AGE DASHA
@@ -522,7 +1259,9 @@ const handleCalculate = async (
       for (
         const md of result.dashas
       ) {
-        if (!md.subDashas) {
+        if (
+          !md.subDashas
+        ) {
           continue;
         }
 
@@ -807,9 +1546,13 @@ const handleCalculate = async (
     <div className="min-h-screen bg-[#0a0a0a] text-stone-200 font-sans selection:bg-amber-500/30">
 
       {/* Background Accents */}
+
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
+
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-amber-900/10 rounded-full blur-3xl" />
+
         <div className="absolute top-1/2 -right-24 w-80 h-80 bg-stone-800/20 rounded-full blur-3xl" />
+
       </div>
 
       <div className="relative w-full max-w-6xl mx-auto px-3 sm:px-4 py-8 sm:py-12">
@@ -831,11 +1574,13 @@ const handleCalculate = async (
             }}
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-stone-900 border border-stone-800 mb-4"
           >
+
             <Sparkles className="w-4 h-4 text-amber-500" />
 
             <span className="text-[10px] sm:text-xs font-medium tracking-widest uppercase text-stone-400">
               Professional Astrology Suite
             </span>
+
           </motion.div>
 
           <motion.h1
@@ -861,6 +1606,7 @@ const handleCalculate = async (
             High-precision Dasha calculations.
             Accurate to the second.
           </p>
+
         </header>
 
         {/* ======================================================
@@ -886,16 +1632,21 @@ const handleCalculate = async (
           >
 
             {/* Birth Details */}
+
             <div className="bg-stone-900/50 sm:backdrop-blur-xl border border-stone-800 p-5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl">
 
               <h2 className="text-xl font-medium text-white mb-6 flex items-center gap-2">
+
                 <Calculator className="w-5 h-5 text-amber-500" />
+
                 Birth Details
+
               </h2>
 
               <div className="space-y-5">
 
                 {/* Date */}
+
                 <div className="space-y-2">
 
                   <label className="text-xs font-semibold uppercase tracking-wider text-stone-500 ml-1">
@@ -918,9 +1669,11 @@ const handleCalculate = async (
                     />
 
                   </div>
+
                 </div>
 
                 {/* Time */}
+
                 <div className="space-y-2">
 
                   <label className="text-xs font-semibold uppercase tracking-wider text-stone-500 ml-1">
@@ -944,9 +1697,11 @@ const handleCalculate = async (
                     />
 
                   </div>
+
                 </div>
 
                 {/* Timezone */}
+
                 <div className="space-y-2">
 
                   <label className="text-xs font-semibold uppercase tracking-wider text-stone-500 ml-1">
@@ -962,6 +1717,7 @@ const handleCalculate = async (
                     }
                     className="w-full bg-stone-950 border border-stone-800 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all text-white appearance-none"
                   >
+
                     <option value="Asia/Kolkata">
                       India (IST)
                     </option>
@@ -977,11 +1733,13 @@ const handleCalculate = async (
                     <option value="UTC">
                       UTC
                     </option>
+
                   </select>
 
                 </div>
 
                 {/* Location */}
+
                 <div className="space-y-2">
 
                   <label className="text-xs font-semibold uppercase tracking-wider text-stone-500 ml-1">
@@ -1005,9 +1763,59 @@ const handleCalculate = async (
                     />
 
                   </div>
+
+                </div>
+
+                {/* Coordinates */}
+
+                <div className="grid grid-cols-2 gap-3">
+
+                  <div className="space-y-2">
+
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 ml-1">
+                      Latitude
+                    </label>
+
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={latitude}
+                      onChange={(e) =>
+                        setLatitude(
+                          e.target.value
+                        )
+                      }
+                      className="w-full bg-stone-950 border border-stone-800 rounded-xl py-3 px-3 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all text-white"
+                      placeholder="28.6139"
+                    />
+
+                  </div>
+
+                  <div className="space-y-2">
+
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 ml-1">
+                      Longitude
+                    </label>
+
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={longitude}
+                      onChange={(e) =>
+                        setLongitude(
+                          e.target.value
+                        )
+                      }
+                      className="w-full bg-stone-950 border border-stone-800 rounded-xl py-3 px-3 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all text-white"
+                      placeholder="77.2090"
+                    />
+
+                  </div>
+
                 </div>
 
                 {/* Calculate */}
+
                 <button
                   type="button"
                   onClick={
@@ -1016,6 +1824,7 @@ const handleCalculate = async (
                   disabled={loading}
                   className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-stone-800 disabled:text-stone-600 text-black font-bold py-4 rounded-xl transition-all shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 mt-4"
                 >
+
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
@@ -1025,9 +1834,11 @@ const handleCalculate = async (
                   {loading
                     ? "Calculating..."
                     : "Calculate Dasha"}
+
                 </button>
 
                 {/* Health */}
+
                 <button
                   type="button"
                   onClick={
@@ -1039,35 +1850,47 @@ const handleCalculate = async (
                 </button>
 
                 {/* Error */}
+
                 {error && (
                   <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400 text-sm">
+
                     <AlertCircle className="w-5 h-5 shrink-0" />
+
                     <p>
                       {error}
                     </p>
+
                   </div>
                 )}
 
               </div>
+
             </div>
 
             {/* Ayanamsa Info */}
+
             <div className="bg-amber-500/5 border border-amber-500/10 p-5 sm:p-6 rounded-2xl sm:rounded-3xl">
 
               <div className="flex items-center gap-3 mb-3">
+
                 <Info className="w-5 h-5 text-amber-500" />
 
                 <h3 className="text-sm font-semibold text-amber-500 uppercase tracking-widest">
                   Ayanamsa
                 </h3>
+
               </div>
 
               <p className="text-xs leading-relaxed text-stone-500">
+
                 Calculations use the{" "}
+
                 <strong>
                   Lahiri (Chitra Paksha)
                 </strong>{" "}
+
                 Ayanamsa as standard.
+
               </p>
 
             </div>
@@ -1084,10 +1907,6 @@ const handleCalculate = async (
 
               {!result ? (
 
-                /* =================================================
-                   EMPTY STATE
-                ================================================= */
-
                 <motion.div
                   key="empty"
                   initial={{
@@ -1101,8 +1920,11 @@ const handleCalculate = async (
                   }}
                   className="h-full min-h-[320px] sm:min-h-[500px] flex flex-col items-center justify-center text-center p-6 sm:p-12 border-2 border-dashed border-stone-800 rounded-2xl sm:rounded-3xl"
                 >
+
                   <div className="w-16 h-16 sm:w-20 sm:h-20 bg-stone-900 rounded-full flex items-center justify-center mb-5 sm:mb-6">
+
                     <Moon className="w-8 h-8 sm:w-10 sm:h-10 text-stone-700" />
+
                   </div>
 
                   <h3 className="text-xl sm:text-2xl font-light text-stone-400 mb-2">
@@ -1112,13 +1934,10 @@ const handleCalculate = async (
                   <p className="text-stone-600 max-w-xs text-sm">
                     Enter birth details to generate your comprehensive Vimshottari Dasha timeline.
                   </p>
+
                 </motion.div>
 
               ) : (
-
-                /* =================================================
-                   RESULT
-                ================================================= */
 
                 <motion.div
                   key="result"
@@ -1140,6 +1959,7 @@ const handleCalculate = async (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
 
                     <div className="bg-stone-900 border border-stone-800 p-4 rounded-2xl">
+
                       <p className="text-[10px] uppercase tracking-widest text-stone-500 mb-1">
                         Nakshatra
                       </p>
@@ -1147,9 +1967,11 @@ const handleCalculate = async (
                       <p className="text-lg font-medium text-white">
                         {result.info.nakshatra}
                       </p>
+
                     </div>
 
                     <div className="bg-stone-900 border border-stone-800 p-4 rounded-2xl">
+
                       <p className="text-[10px] uppercase tracking-widest text-stone-500 mb-1">
                         Sidereal Longitude
                       </p>
@@ -1157,9 +1979,11 @@ const handleCalculate = async (
                       <p className="text-lg font-medium text-white">
                         {result.info.moonLong.toFixed(4)}°
                       </p>
+
                     </div>
 
                     <div className="bg-stone-900 border border-stone-800 p-4 rounded-2xl">
+
                       <p className="text-[10px] uppercase tracking-widest text-stone-500 mb-1">
                         Ayanamsa (Lahiri)
                       </p>
@@ -1167,9 +1991,9 @@ const handleCalculate = async (
                       <p className="text-lg font-medium text-white">
                         {result.info.ayanamsa.toFixed(4)}°
                       </p>
+
                     </div>
 
-                    {/* Export PDF */}
                     <div className="bg-stone-900 border border-stone-800 p-4 rounded-2xl">
 
                       <button
@@ -1179,11 +2003,13 @@ const handleCalculate = async (
                         }
                         className="group w-full h-full min-h-[90px] flex flex-col items-center justify-center gap-1 rounded-xl text-amber-500 bg-gradient-to-br from-[#111111] via-[#0d0d0d] to-[#161616] transition-all duration-300 hover:-translate-y-1 hover:text-amber-300 hover:shadow-[0_0_25px_rgba(245,158,11,0.15)] active:scale-[0.98]"
                       >
+
                         <Download className="w-5 h-5 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5" />
 
                         <span className="text-[10px] uppercase tracking-widest font-bold">
                           Export PDF
                         </span>
+
                       </button>
 
                     </div>
@@ -1203,11 +2029,13 @@ const handleCalculate = async (
                       }
                       className="group w-full min-h-[80px] flex flex-col items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-400 to-amber-600 text-black font-bold transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(245,158,11,0.28)] active:scale-[0.98]"
                     >
+
                       <Sparkles className="w-5 h-5 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6" />
 
                       <span className="text-xs uppercase tracking-widest">
                         Book Personal Horoscope Consultation
                       </span>
+
                     </button>
 
                   </div>
@@ -1218,70 +2046,79 @@ const handleCalculate = async (
 
                   {selectedPath.length >
                     0 && (
-                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4">
 
-                        <p className="text-xs uppercase tracking-widest text-amber-500 font-semibold mb-2">
-                          Selected Dasha Sequence
-                        </p>
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4">
 
-                        <p className="text-sm text-amber-100 font-medium flex flex-wrap items-center gap-2">
+                      <p className="text-xs uppercase tracking-widest text-amber-500 font-semibold mb-2">
+                        Selected Dasha Sequence
+                      </p>
 
-                          {selectedPath.map(
-                            (
-                              period,
-                              idx
-                            ) => (
-                              <React.Fragment
-                                key={
-                                  idx
-                                }
-                              >
-                                <span>
-                                  {period.planet}{" "}
-                                  <span className="text-[10px] opacity-60 font-light">
-                                    (
-                                    {
-                                      [
-                                        "Mahadasha",
-                                        "Antardasha",
-                                        "Pratyantar",
-                                        "Sookshma",
-                                        "Prana",
-                                      ][idx]
-                                    }
-                                    )
-                                  </span>
+                      <p className="text-sm text-amber-100 font-medium flex flex-wrap items-center gap-2">
+
+                        {selectedPath.map(
+                          (
+                            period,
+                            idx
+                          ) => (
+
+                            <React.Fragment
+                              key={
+                                idx
+                              }
+                            >
+
+                              <span>
+
+                                {period.planet}{" "}
+
+                                <span className="text-[10px] opacity-60 font-light">
+                                  (
+                                  {
+                                    [
+                                      "Mahadasha",
+                                      "Antardasha",
+                                      "Pratyantar",
+                                      "Sookshma",
+                                      "Prana",
+                                    ][idx]
+                                  }
+                                  )
                                 </span>
 
-                                {idx <
-                                  selectedPath.length -
-                                    1 && (
-                                  <ChevronRight className="w-4 h-4 opacity-50" />
-                                )}
-                              </React.Fragment>
-                            )
-                          )}
+                              </span>
 
-                        </p>
+                              {idx <
+                                selectedPath.length -
+                                  1 && (
+                                <ChevronRight className="w-4 h-4 opacity-50" />
+                              )}
 
-                        <p className="text-[11px] text-amber-200/60 mt-2">
-                          {
-                            selectedPath[
-                              selectedPath.length -
-                                1
-                            ]?.start
-                          }{" "}
-                          —{" "}
-                          {
-                            selectedPath[
-                              selectedPath.length -
-                                1
-                            ]?.end
-                          }
-                        </p>
+                            </React.Fragment>
+                          )
+                        )}
 
-                      </div>
-                    )}
+                      </p>
+
+                      <p className="text-[11px] text-amber-200/60 mt-2">
+
+                        {
+                          selectedPath[
+                            selectedPath.length -
+                              1
+                          ]?.start
+                        }{" "}
+                        —{" "}
+                        {
+                          selectedPath[
+                            selectedPath.length -
+                              1
+                          ]?.end
+                        }
+
+                      </p>
+
+                    </div>
+                  )}
 
                   {/* =================================================
                       DASHA HIERARCHY
@@ -1321,6 +2158,192 @@ const handleCalculate = async (
                       )}
 
                     </div>
+
+                  </div>
+
+                  {/* =================================================
+                      LAGNA KUNDLI / D1 RASHI CHART
+                  ================================================= */}
+
+                  <div className="bg-stone-900/80 border border-stone-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-5 sm:space-y-6">
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+                      <div className="flex items-center gap-2">
+
+                        <Sparkles className="w-5 h-5 text-amber-500" />
+
+                        <div>
+
+                          <h3 className="text-base font-semibold text-white">
+                            Lagna Kundli
+                          </h3>
+
+                          <p className="text-[11px] text-stone-500 mt-0.5">
+                            D1 Rashi Chart · Lahiri Sidereal · Whole Sign
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                      <div className="w-fit px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+
+                        <span className="text-[10px] uppercase tracking-widest text-amber-400 font-semibold">
+                          D1 Rashi
+                        </span>
+
+                      </div>
+
+                    </div>
+
+                    {/* Lagna / Coordinates */}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                      <div className="bg-stone-950 border border-stone-800 rounded-2xl p-4">
+
+                        <p className="text-[10px] uppercase tracking-widest text-stone-500">
+                          Lagna / Ascendant
+                        </p>
+
+                        <div className="flex flex-wrap items-baseline gap-2 mt-1">
+
+                          <span className="text-xl font-semibold text-white">
+                            Rashi{" "}
+                            {getRashiNumber(
+                              result.kundli.ascendantSign
+                            )}
+                          </span>
+
+                          <span className="font-mono text-amber-400 font-semibold">
+                            {result.kundli.ascendantFormattedDegree}
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                      <div className="bg-stone-950 border border-stone-800 rounded-2xl p-4">
+
+                        <p className="text-[10px] uppercase tracking-widest text-stone-500">
+                          Birth Coordinates
+                        </p>
+
+                        <p className="font-mono text-sm text-stone-300 mt-1">
+                          {Number(latitude).toFixed(4)}°,{" "}
+                          {Number(longitude).toFixed(4)}°
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {/* =================================================
+                        NORTH INDIAN KUNDLI
+                    ================================================= */}
+
+                    <div className="bg-stone-950 border border-stone-800 rounded-2xl p-3 sm:p-5">
+
+                      <D1KundliChart
+                        kundli={
+                          result.kundli
+                        }
+                      />
+
+                    </div>
+
+                    {/* Planetary Placement */}
+
+                    <div>
+
+                      <div className="flex items-center justify-between gap-3 mb-3">
+
+                        <div>
+
+                          <h4 className="text-sm font-semibold text-white">
+                            Planetary Placement
+                          </h4>
+
+                          <p className="text-[11px] text-stone-500 mt-1">
+                            D1 house, Rashi number and sidereal degree
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                      <div className="overflow-x-auto">
+
+                        <table className="w-full min-w-[560px] text-xs">
+
+                          <thead>
+
+                            <tr className="border-b border-stone-800">
+
+                              <th className="text-left px-3 py-2 text-[9px] uppercase tracking-widest text-stone-500">
+                                Planet
+                              </th>
+
+                              <th className="text-left px-3 py-2 text-[9px] uppercase tracking-widest text-stone-500">
+                                House
+                              </th>
+
+                              <th className="text-left px-3 py-2 text-[9px] uppercase tracking-widest text-stone-500">
+                                Rashi
+                              </th>
+
+                              <th className="text-left px-3 py-2 text-[9px] uppercase tracking-widest text-stone-500">
+                                Degree
+                              </th>
+
+                            </tr>
+
+                          </thead>
+
+                          <tbody>
+
+                            {result.kundli.planets.map(
+                              (planet) => (
+
+                                <tr
+                                  key={
+                                    planet.planet
+                                  }
+                                  className="border-b border-stone-800/60"
+                                >
+
+                                  <td className="px-3 py-2.5 text-white font-medium">
+                                    {planet.planet}
+                                  </td>
+
+                                  <td className="px-3 py-2.5 text-amber-400 font-semibold">
+                                    {planet.house}
+                                  </td>
+
+                                  <td className="px-3 py-2.5 text-stone-300">
+                                    {getRashiNumber(
+                                      planet.sign
+                                    )}
+                                  </td>
+
+                                  <td className="px-3 py-2.5 font-mono text-stone-300">
+                                    {planet.formattedDegree}
+                                  </td>
+
+                                </tr>
+
+                              )
+                            )}
+
+                          </tbody>
+
+                        </table>
+
+                      </div>
+
+                    </div>
+
                   </div>
 
                   {/* =================================================
@@ -1334,11 +2357,13 @@ const handleCalculate = async (
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
                         <div className="flex items-center gap-2">
+
                           <Search className="w-5 h-5 text-amber-500" />
 
                           <h3 className="text-base font-semibold text-white">
                             Check Dasha By Age
                           </h3>
+
                         </div>
 
                         {dob &&
@@ -1350,6 +2375,7 @@ const handleCalculate = async (
 
                             return currentAge ? (
                               <div className="inline-flex w-fit items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-xs font-medium text-amber-400">
+
                                 <span>
                                   Current Age:
                                 </span>
@@ -1368,6 +2394,7 @@ const handleCalculate = async (
                                   }{" "}
                                   days
                                 </span>
+
                               </div>
                             ) : null;
                           })()}
@@ -1401,14 +2428,17 @@ const handleCalculate = async (
                           }
                           className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-3 rounded-xl transition-all shrink-0 flex items-center justify-center gap-2"
                         >
+
                           <UserCheck className="w-4 h-4" />
 
                           Find Age Dasha
+
                         </button>
 
                       </div>
 
                       {ageDashaResult && (
+
                         <motion.div
                           initial={{
                             opacity: 0,
@@ -1422,6 +2452,7 @@ const handleCalculate = async (
                         >
 
                           <div className="text-xs uppercase tracking-widest text-amber-500 font-medium">
+
                             Active Dasha Window for Age{" "}
                             {
                               ageDashaResult.age
@@ -1435,6 +2466,7 @@ const handleCalculate = async (
                               ageDashaResult.endDateStr
                             }
                             )
+
                           </div>
 
                           {ageDashaResult.matches.map(
@@ -1442,6 +2474,7 @@ const handleCalculate = async (
                               item,
                               idx
                             ) => (
+
                               <div
                                 key={
                                   idx
@@ -1451,8 +2484,7 @@ const handleCalculate = async (
 
                                 <div className="text-[11px] text-stone-500 font-medium uppercase tracking-wider">
                                   Period #
-                                  {idx +
-                                    1}
+                                  {idx + 1}
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2 text-base font-semibold text-white">
@@ -1492,15 +2524,18 @@ const handleCalculate = async (
                                 </div>
 
                               </div>
+
                             )
                           )}
 
                         </motion.div>
+
                       )}
 
                     </div>
 
                     {/* Planetary Maturity */}
+
                     <div className="border-t border-stone-800 pt-5 space-y-3">
 
                       <div className="flex items-center gap-2">
@@ -1517,12 +2552,14 @@ const handleCalculate = async (
 
                         {PLANET_MATURITY_AGES.map(
                           (item) => (
+
                             <button
                               key={
                                 item.planet
                               }
                               type="button"
                               onClick={() => {
+
                                 setTargetAge(
                                   item.age.toString()
                                 );
@@ -1530,6 +2567,7 @@ const handleCalculate = async (
                                 handleCalculateAgeDasha(
                                   item.age
                                 );
+
                               }}
                               className="group bg-stone-950 border border-stone-800 hover:border-amber-500/60 hover:bg-amber-500/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] active:scale-95 rounded-xl p-2.5 text-center transition-all duration-200 cursor-pointer"
                             >
@@ -1548,10 +2586,12 @@ const handleCalculate = async (
                               </div>
 
                             </button>
+
                           )
                         )}
 
                       </div>
+
                     </div>
 
                   </div>
@@ -1563,9 +2603,9 @@ const handleCalculate = async (
                   <div className="bg-stone-900/80 border border-stone-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-5 sm:space-y-6">
 
                     {/* Header */}
+
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
-                      {/* Title */}
                       <div className="flex items-center gap-2">
 
                         <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
@@ -1581,12 +2621,13 @@ const handleCalculate = async (
                           </p>
 
                         </div>
+
                       </div>
 
                       {/* Controls */}
+
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
 
-                        {/* Lahiri */}
                         <div className="w-fit px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
 
                           <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-amber-400 font-semibold">
@@ -1595,7 +2636,6 @@ const handleCalculate = async (
 
                         </div>
 
-                        {/* Lunar Node */}
                         <div className="flex items-center gap-2">
 
                           <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
@@ -1610,7 +2650,9 @@ const handleCalculate = async (
                                 setNodeType(
                                   "mean"
                                 );
-                                void handleCalculate("mean");
+                                void handleCalculate(
+                                  "mean"
+                                );
                               }}
                               className={cn(
                                 "px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all",
@@ -1629,7 +2671,9 @@ const handleCalculate = async (
                                 setNodeType(
                                   "true"
                                 );
-                                void handleCalculate("true");
+                                void handleCalculate(
+                                  "true"
+                                );
                               }}
                               className={cn(
                                 "px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all",
@@ -1643,12 +2687,15 @@ const handleCalculate = async (
                             </button>
 
                           </div>
+
                         </div>
 
                       </div>
+
                     </div>
 
                     {/* Explanation */}
+
                     <div className="bg-stone-950 border border-stone-800 rounded-2xl p-4">
 
                       <p className="text-xs leading-relaxed text-stone-400">
@@ -1668,6 +2715,7 @@ const handleCalculate = async (
                     </div>
 
                     {/* Planet Table */}
+
                     <div className="overflow-x-auto">
 
                       <table className="w-full min-w-[680px] text-xs sm:text-sm">
@@ -1713,6 +2761,7 @@ const handleCalculate = async (
                                 );
 
                               return (
+
                                 <tr
                                   key={
                                     planet.planet
@@ -1720,18 +2769,19 @@ const handleCalculate = async (
                                   className="border-b border-stone-800/70 hover:bg-white/[0.025] transition-colors"
                                 >
 
-                                  {/* Planet */}
                                   <td className="px-4 py-4">
 
                                     <div className="flex items-center gap-3">
 
                                       <div className="w-8 h-8 rounded-full bg-stone-800 border border-stone-700 flex items-center justify-center text-[10px] font-bold text-stone-300 shrink-0">
+
                                         {planet.planet
                                           .substring(
                                             0,
                                             2
                                           )
                                           .toUpperCase()}
+
                                       </div>
 
                                       <span className="font-medium text-white">
@@ -1744,7 +2794,6 @@ const handleCalculate = async (
 
                                   </td>
 
-                                  {/* Sidereal Longitude */}
                                   <td className="px-4 py-4">
 
                                     <span className="font-mono text-stone-300">
@@ -1756,30 +2805,20 @@ const handleCalculate = async (
 
                                   </td>
 
-                                  {/* Rashi */}
                                   <td className="px-4 py-4">
 
                                     <div className="flex items-center gap-2">
 
                                       <span className="text-white font-medium">
-                                        {
+                                        {getRashiNumber(
                                           planet.sign
-                                        }
-                                      </span>
-
-                                      <span className="text-[10px] text-stone-600 font-mono">
-                                        (
-                                        {
-                                          planet.signShort
-                                        }
-                                        )
+                                        )}
                                       </span>
 
                                     </div>
 
                                   </td>
 
-                                  {/* Degree */}
                                   <td className="px-4 py-4">
 
                                     <div className="flex flex-col">
@@ -1801,7 +2840,6 @@ const handleCalculate = async (
 
                                   </td>
 
-                                  {/* Chara Karaka */}
                                   <td className="px-4 py-4">
 
                                     {karaka ? (
@@ -1844,6 +2882,7 @@ const handleCalculate = async (
                                   </td>
 
                                 </tr>
+
                               );
                             }
                           )}
@@ -1855,6 +2894,7 @@ const handleCalculate = async (
                     </div>
 
                     {/* Chara Karaka Ranking */}
+
                     <div className="border-t border-stone-800 pt-6 space-y-4">
 
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -1902,8 +2942,7 @@ const handleCalculate = async (
 
                                 <span className="text-[10px] uppercase tracking-widest text-stone-600">
                                   #
-                                  {index +
-                                    1}
+                                  {index + 1}
                                 </span>
 
                                 {index ===
@@ -1952,9 +2991,10 @@ const handleCalculate = async (
                                   )}
 
                                   <p className="text-[10px] text-stone-600 mt-1">
-                                    {
+                                    Rashi{" "}
+                                    {getRashiNumber(
                                       item.sign
-                                    }
+                                    )}
                                   </p>
 
                                 </div>
@@ -1971,6 +3011,7 @@ const handleCalculate = async (
                     </div>
 
                     {/* Important Note */}
+
                     <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4">
 
                       <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
@@ -1982,13 +3023,17 @@ const handleCalculate = async (
                         </p>
 
                         <p className="text-[11px] leading-relaxed text-stone-500">
+
                           This implementation uses the 8-Karaka scheme:
                           Atmakaraka, Amatyakaraka, Bhratrikaraka,
                           Matrikaraka, Pitrikaraka, Putrakaraka,
                           Gnatikaraka and Darakaraka.
+
                           Rahu is included using its reverse degree
                           (30° − actual degree within sign).
+
                           Ketu is not included.
+
                         </p>
 
                       </div>
@@ -1998,12 +3043,15 @@ const handleCalculate = async (
                   </div>
 
                 </motion.div>
+
               )}
 
             </AnimatePresence>
 
           </div>
+
         </div>
+
       </div>
 
       {/* ========================================================
@@ -2019,19 +3067,25 @@ const handleCalculate = async (
           </div>
 
           <h3 className="text-xl text-white font-light mb-3">
+
             Vedic
             <span className="text-amber-500">
               Vimshottari
             </span>
+
           </h3>
 
           <p className="text-stone-400 text-sm">
+
             © 2026 VedicVimshottari Pro™.
             Developed by{" "}
+
             <span className="text-white font-medium">
               Ritik Verma
             </span>
+
             . All rights reserved.
+
           </p>
 
           <p className="text-stone-600 text-xs mt-3">
