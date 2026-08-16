@@ -140,40 +140,17 @@ function getRashiNumber(sign: string): number | string {
 // ============================================================
 
 const NORTH_INDIAN_HOUSE_POLYGONS: Record<number, string> = {
-  // 1st House — Top center
   1: "50,0 75,25 50,50 25,25",
-
-  // 2nd House — Upper left
   2: "0,0 50,0 25,25",
-
-  // 3rd House — Left upper
   3: "0,0 0,50 25,25",
-
-  // 4th House — Left center
   4: "0,50 25,25 50,50 25,75",
-
-  // 5th House — Left lower
   5: "0,50 0,100 25,75",
-
-  // 6th House — Bottom left
   6: "0,100 50,100 25,75",
-
-  // 7th House — Bottom center
   7: "50,100 75,75 50,50 25,75",
-
-  // 8th House — Bottom right
   8: "50,100 100,100 75,75",
-
-  // 9th House — Right lower
   9: "100,50 100,100 75,75",
-
-  // 10th House — Right center
   10: "100,50 75,25 50,50 75,75",
-
-  // 11th House — Right upper
   11: "100,0 100,50 75,25",
-
-  // 12th House — Upper right
   12: "50,0 100,0 75,25",
 };
 
@@ -185,40 +162,17 @@ const NORTH_INDIAN_TEXT_POSITIONS: Record<
   number,
   { x: number; y: number }
 > = {
-  // 1st House — Top center
   1: { x: 50, y: 20 },
-
-  // 2nd House — Upper left
   2: { x: 32, y: 12 },
-
-  // 3rd House — Left upper
   3: { x: 13, y: 25 },
-
-  // 4th House — Left center
   4: { x: 18, y: 50 },
-
-  // 5th House — Left lower
   5: { x: 13, y: 75 },
-
-  // 6th House — Bottom left
   6: { x: 32, y: 88 },
-
-  // 7th House — Bottom center
   7: { x: 50, y: 80 },
-
-  // 8th House — Bottom right
   8: { x: 68, y: 88 },
-
-  // 9th House — Right lower
   9: { x: 87, y: 75 },
-
-  // 10th House — Right center
   10: { x: 82, y: 50 },
-
-  // 11th House — Right upper
   11: { x: 87, y: 25 },
-
-  // 12th House — Upper right
   12: { x: 68, y: 12 },
 };
 
@@ -250,9 +204,7 @@ function getVisibleHouseNatalHouse(
   visibleHouse: number,
   startNatalHouse: number
 ): number {
-  return (
-    ((startNatalHouse - 1 + visibleHouse - 1) % 12) + 1
-  );
+  return ((startNatalHouse - 1 + visibleHouse - 1) % 12) + 1;
 }
 
 // ============================================================
@@ -274,8 +226,7 @@ function NorthIndianHouseLabel({
   selected: boolean;
   currentLagna: boolean;
 }) {
-  const position =
-    NORTH_INDIAN_TEXT_POSITIONS[houseNumber];
+  const position = NORTH_INDIAN_TEXT_POSITIONS[houseNumber];
 
   return (
     <div
@@ -286,19 +237,13 @@ function NorthIndianHouseLabel({
         width: "24%",
       }}
     >
-      {/* House number */}
-
       <div className="text-[8px] sm:text-[9px] font-bold text-[#6B5A44]">
         H{houseNumber}
       </div>
 
-      {/* Rashi number */}
-
       <div className="text-[10px] sm:text-xs font-extrabold text-[#1F647B] mt-0.5">
         {rashiNumber}
       </div>
-
-      {/* Planets */}
 
       <div className="mt-1 flex flex-wrap justify-center gap-x-1.5 gap-y-1">
         {planets.length > 0 ? (
@@ -320,23 +265,17 @@ function NorthIndianHouseLabel({
         )}
       </div>
 
-      {/* Lagna badge */}
-
       {currentLagna && (
         <div className="mt-1 inline-block rounded-full bg-[#8B2F2F]/10 px-1.5 py-0.5 text-[7px] sm:text-[8px] font-bold uppercase tracking-wider text-[#8B2F2F]">
           Lagna
         </div>
       )}
 
-      {/* Natal house when derived */}
-
       {natalHouseNumber !== houseNumber && (
         <div className="mt-0.5 text-[7px] sm:text-[8px] font-medium text-[#89765A]">
           Natal H{natalHouseNumber}
         </div>
       )}
-
-      {/* Selection */}
 
       {selected && (
         <div className="mt-1 text-[7px] sm:text-[8px] font-bold uppercase tracking-wider text-[#8B2F2F]">
@@ -356,14 +295,12 @@ function D1KundliChart({
 }: {
   kundli: KundliData;
 }) {
-  const [startNatalHouse, setStartNatalHouse] =
-    useState(1);
+  const [startNatalHouse, setStartNatalHouse] = useState(1);
 
   const [selectedVisibleHouse, setSelectedVisibleHouse] =
     useState<number | null>(null);
 
-  const derivedView =
-    startNatalHouse !== 1;
+  const derivedView = startNatalHouse !== 1;
 
   const selectedNatalHouse =
     selectedVisibleHouse === null
@@ -377,15 +314,12 @@ function D1KundliChart({
     selectedNatalHouse === null
       ? null
       : kundli.houses.find(
-          (house) =>
-            house.house === selectedNatalHouse
+          (house) => house.house === selectedNatalHouse
         );
 
-  const currentLagnaHouse =
-    kundli.houses.find(
-      (house) =>
-        house.house === startNatalHouse
-    );
+  const currentLagnaHouse = kundli.houses.find(
+    (house) => house.house === startNatalHouse
+  );
 
   const applySelectedHouseAsLagna = () => {
     if (
@@ -406,26 +340,14 @@ function D1KundliChart({
 
   return (
     <div className="space-y-4">
-
-      {/* ======================================================
-          TRADITIONAL NORTH INDIAN DIAMOND CHART
-      ====================================================== */}
-
       <div className="relative w-full max-w-[620px] mx-auto">
-
         <div className="relative aspect-square overflow-hidden rounded-sm border-[3px] border-[#765535] bg-[#F2E5CF] shadow-[0_12px_35px_rgba(78,51,26,0.18)]">
-
           <svg
             viewBox="0 0 100 100"
             className="absolute inset-0 h-full w-full"
             role="img"
             aria-label="Traditional North Indian style D1 Rashi chart"
           >
-
-            {/* ==================================================
-                PAPER BACKGROUND
-            ================================================== */}
-
             <rect
               x="0"
               y="0"
@@ -433,10 +355,6 @@ function D1KundliChart({
               height="100"
               fill="#F2E5CF"
             />
-
-            {/* ==================================================
-                OUTER SQUARE
-            ================================================== */}
 
             <rect
               x="1"
@@ -448,10 +366,6 @@ function D1KundliChart({
               strokeWidth="0.85"
             />
 
-            {/* ==================================================
-                MAIN NORTH INDIAN DIAMOND
-            ================================================== */}
-
             <polygon
               points="50,1 99,50 50,99 1,50"
               fill="#F5EAD7"
@@ -459,10 +373,6 @@ function D1KundliChart({
               strokeWidth="0.85"
             />
 
-            {/* ==================================================
-                CORNER → CENTER DIAGONALS
-            ================================================== */}
-
             <line
               x1="1"
               y1="1"
@@ -498,10 +408,6 @@ function D1KundliChart({
               stroke="#765535"
               strokeWidth="0.85"
             />
-
-            {/* ==================================================
-                CLICKABLE HOUSE REGIONS
-            ================================================== */}
 
             {Array.from(
               { length: 12 },
@@ -515,8 +421,7 @@ function D1KundliChart({
                   );
 
                 const isSelected =
-                  selectedVisibleHouse ===
-                  visibleHouse;
+                  selectedVisibleHouse === visibleHouse;
 
                 return (
                   <polygon
@@ -531,21 +436,13 @@ function D1KundliChart({
                         ? "#B8893F"
                         : "transparent"
                     }
-                    fillOpacity={
-                      isSelected
-                        ? 0.24
-                        : 0
-                    }
+                    fillOpacity={isSelected ? 0.24 : 0}
                     stroke={
                       isSelected
                         ? "#8B2F2F"
                         : "transparent"
                     }
-                    strokeWidth={
-                      isSelected
-                        ? 0.9
-                        : 0
-                    }
+                    strokeWidth={isSelected ? 0.9 : 0}
                     className="cursor-pointer"
                     onClick={() =>
                       setSelectedVisibleHouse(
@@ -583,12 +480,7 @@ function D1KundliChart({
                 );
               }
             )}
-
           </svg>
-
-          {/* ==================================================
-              HOUSE TEXT / PLANETS
-          ================================================== */}
 
           {Array.from(
             { length: 12 },
@@ -601,11 +493,9 @@ function D1KundliChart({
                   startNatalHouse
                 );
 
-              const house =
-                kundli.houses.find(
-                  (item) =>
-                    item.house === natalHouse
-                );
+              const house = kundli.houses.find(
+                (item) => item.house === natalHouse
+              );
 
               if (!house) {
                 return null;
@@ -632,16 +522,9 @@ function D1KundliChart({
             }
           )}
 
-          {/* ==================================================
-              CENTER LAGNA LABEL
-          ================================================== */}
-
           <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none select-none">
-
             <div className="text-[8px] sm:text-[9px] uppercase tracking-[0.18em] font-bold text-[#765535]">
-              {derivedView
-                ? "Derived Lagna"
-                : "Lagna"}
+              {derivedView ? "Derived Lagna" : "Lagna"}
             </div>
 
             <div className="text-lg sm:text-2xl font-extrabold text-[#8B2F2F]">
@@ -657,35 +540,21 @@ function D1KundliChart({
                 ? `Natal H${startNatalHouse}`
                 : kundli.ascendantFormattedDegree}
             </div>
-
           </div>
-
         </div>
-
       </div>
 
-      {/* ======================================================
-          HOUSE SELECTION / DERIVED LAGNA CONTROLS
-      ====================================================== */}
-
       <div className="rounded-2xl border border-[#B89A70] bg-[#F7EBD8] p-3 sm:p-4">
-
         {selectedVisibleHouse !== null ? (
-
           <div className="space-y-3">
-
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-
               <div>
-
                 <p className="text-[10px] uppercase tracking-[0.16em] font-bold text-[#765535]">
                   House Selected
                 </p>
 
                 <p className="mt-1 text-sm sm:text-base font-extrabold text-[#542F28]">
-
-                  House{" "}
-                  {selectedVisibleHouse}
+                  House {selectedVisibleHouse}
                   {" · Rashi "}
                   {selectedHouseData
                     ? getRashiNumber(
@@ -700,27 +569,19 @@ function D1KundliChart({
                       {selectedNatalHouse}
                     </span>
                   )}
-
                 </p>
-
               </div>
 
               <p className="text-[11px] text-[#7D6A54]">
                 This selection is the house you clicked.
               </p>
-
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2">
-
               <button
                 type="button"
-                disabled={
-                  selectedVisibleHouse === 1
-                }
-                onClick={
-                  applySelectedHouseAsLagna
-                }
+                disabled={selectedVisibleHouse === 1}
+                onClick={applySelectedHouseAsLagna}
                 className={cn(
                   "flex-1 rounded-xl px-4 py-3 text-sm font-extrabold transition-all",
                   selectedVisibleHouse === 1
@@ -736,25 +597,17 @@ function D1KundliChart({
               {derivedView && (
                 <button
                   type="button"
-                  onClick={
-                    restoreOriginalLagna
-                  }
+                  onClick={restoreOriginalLagna}
                   className="rounded-xl border border-[#8B2F2F]/40 bg-[#FFF9EF] px-4 py-3 text-sm font-extrabold text-[#7A302D] hover:bg-white transition-all"
                 >
                   Back to Original Lagna Kundli
                 </button>
               )}
-
             </div>
-
           </div>
-
         ) : (
-
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
             <div>
-
               <p className="text-[10px] uppercase tracking-[0.16em] font-bold text-[#765535]">
                 Interactive Kundli
               </p>
@@ -762,27 +615,20 @@ function D1KundliChart({
               <p className="mt-1 text-sm text-[#66513B]">
                 Click anywhere inside a house to select it.
               </p>
-
             </div>
 
             {derivedView && (
               <button
                 type="button"
-                onClick={
-                  restoreOriginalLagna
-                }
+                onClick={restoreOriginalLagna}
                 className="rounded-xl border border-[#8B2F2F]/40 bg-[#FFF9EF] px-4 py-2.5 text-sm font-extrabold text-[#7A302D] hover:bg-white transition-all"
               >
                 Back to Original Lagna Kundli
               </button>
             )}
-
           </div>
-
         )}
-
       </div>
-
     </div>
   );
 }
@@ -814,8 +660,7 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
   onPathSelect,
   ancestors = [],
 }) => {
-  const [expanded, setExpanded] =
-    useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const active = isCurrent(
     period.start,
@@ -871,11 +716,8 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
         onClick={handleClick}
         className="w-full px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-white/5 transition-colors text-left"
       >
-
         <div className="flex items-center justify-between gap-3">
-
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-
             <div
               className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
@@ -890,7 +732,6 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
             </div>
 
             <div className="flex items-center gap-2 min-w-0">
-
               <span
                 className={cn(
                   "font-semibold text-[17px] sm:text-lg",
@@ -909,25 +750,19 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
               {active && (
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
               )}
-
             </div>
-
           </div>
 
-          {hasSubs && (
-            expanded ? (
+          {hasSubs &&
+            (expanded ? (
               <ChevronDown className="w-4 h-4 text-stone-600 shrink-0" />
             ) : (
               <ChevronRight className="w-4 h-4 text-stone-600 shrink-0" />
-            )
-          )}
-
+            ))}
         </div>
 
         <div className="mt-3 sm:mt-2 pl-10 sm:pl-11">
-
           <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1 sm:gap-2">
-
             <span className="text-[13px] sm:text-base text-stone-200 font-mono font-semibold leading-6">
               {period.start}
             </span>
@@ -939,17 +774,12 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
             <span className="text-[13px] sm:text-base text-stone-200 font-mono font-semibold leading-6">
               {period.end}
             </span>
-
           </div>
-
         </div>
-
       </button>
 
       <AnimatePresence>
-
         {expanded && hasSubs && (
-
           <motion.div
             initial={{
               height: 0,
@@ -965,7 +795,6 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
             }}
             className="px-2 sm:px-3 pb-3 pt-1 border-t border-stone-800/50"
           >
-
             {period.subDashas?.map(
               (sub, idx) => (
                 <DashaLevel
@@ -981,13 +810,9 @@ const DashaLevel: React.FC<DashaLevelProps> = ({
                 />
               )
             )}
-
           </motion.div>
-
         )}
-
       </AnimatePresence>
-
     </div>
   );
 };
@@ -1128,6 +953,54 @@ Thank you!`
       url,
       "_blank"
     );
+  };
+
+  // ==========================================================
+  // PRASHAN KUNDLI
+  // ==========================================================
+
+  const handlePrashanKundli = () => {
+    /*
+     * Use the currently selected timezone.
+     *
+     * For example, with Asia/Kolkata:
+     * Date  -> 2026-08-16
+     * Time  -> 17:41:32
+     *
+     * The exact current second is captured when
+     * the button is clicked.
+     */
+    const now =
+      DateTime.now().setZone(
+        timezone
+      );
+
+    if (!now.isValid) {
+      setError(
+        "Unable to determine the current date and time."
+      );
+      return;
+    }
+
+    // Automatically fill current date.
+    setDob(
+      now.toFormat(
+        "yyyy-MM-dd"
+      )
+    );
+
+    // Automatically fill current time including seconds.
+    setTob(
+      now.toFormat(
+        "HH:mm:ss"
+      )
+    );
+
+    // Clear old calculation.
+    setResult(null);
+    setError(null);
+    setSelectedPath([]);
+    setAgeDashaResult(null);
   };
 
   // ==========================================================
@@ -1545,8 +1418,6 @@ Thank you!`
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-stone-200 font-sans selection:bg-amber-500/30">
 
-      {/* Background Accents */}
-
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
 
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-amber-900/10 rounded-full blur-3xl" />
@@ -1814,7 +1685,26 @@ Thank you!`
 
                 </div>
 
-                {/* Calculate */}
+                {/* ==================================================
+                    PRASHAN KUNDLI
+                ================================================== */}
+
+                <button
+                  type="button"
+                  onClick={handlePrashanKundli}
+                  disabled={loading}
+                  className="w-full bg-stone-800 hover:bg-stone-700 disabled:bg-stone-900 disabled:text-stone-600 text-amber-400 border border-amber-500/30 hover:border-amber-500/50 font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-4"
+                >
+
+                  <Clock className="w-5 h-5" />
+
+                  Prashan Kundli
+
+                </button>
+
+                {/* ==================================================
+                    CALCULATE DASHA
+                ================================================== */}
 
                 <button
                   type="button"
@@ -1822,7 +1712,7 @@ Thank you!`
                     handleCalculate
                   }
                   disabled={loading}
-                  className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-stone-800 disabled:text-stone-600 text-black font-bold py-4 rounded-xl transition-all shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 mt-4"
+                  className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-stone-800 disabled:text-stone-600 text-black font-bold py-4 rounded-xl transition-all shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 mt-2"
                 >
 
                   {loading ? (
@@ -1952,9 +1842,7 @@ Thank you!`
                   className="space-y-5 sm:space-y-6"
                 >
 
-                  {/* =================================================
-                      SUMMARY CARDS
-                  ================================================= */}
+                  {/* SUMMARY CARDS */}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
 
@@ -2016,9 +1904,7 @@ Thank you!`
 
                   </div>
 
-                  {/* =================================================
-                      CONSULTATION
-                  ================================================= */}
+                  {/* CONSULTATION */}
 
                   <div className="bg-amber-500 border border-amber-400 p-4 rounded-2xl">
 
@@ -2040,9 +1926,7 @@ Thank you!`
 
                   </div>
 
-                  {/* =================================================
-                      SELECTED DASHA PATH
-                  ================================================= */}
+                  {/* SELECTED DASHA PATH */}
 
                   {selectedPath.length >
                     0 && (
@@ -2120,9 +2004,7 @@ Thank you!`
                     </div>
                   )}
 
-                  {/* =================================================
-                      DASHA HIERARCHY
-                  ================================================= */}
+                  {/* DASHA HIERARCHY */}
 
                   <div className="bg-stone-900/50 border border-stone-800 rounded-2xl sm:rounded-3xl overflow-hidden">
 
@@ -2161,9 +2043,7 @@ Thank you!`
 
                   </div>
 
-                  {/* =================================================
-                      LAGNA KUNDLI / D1 RASHI CHART
-                  ================================================= */}
+                  {/* LAGNA KUNDLI / D1 RASHI CHART */}
 
                   <div className="bg-stone-900/80 border border-stone-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-5 sm:space-y-6">
 
@@ -2239,9 +2119,7 @@ Thank you!`
 
                     </div>
 
-                    {/* =================================================
-                        NORTH INDIAN KUNDLI
-                    ================================================= */}
+                    {/* NORTH INDIAN KUNDLI */}
 
                     <div className="bg-stone-950 border border-stone-800 rounded-2xl p-3 sm:p-5">
 
@@ -2346,9 +2224,7 @@ Thank you!`
 
                   </div>
 
-                  {/* =================================================
-                      AGE DASHA
-                  ================================================= */}
+                  {/* AGE DASHA */}
 
                   <div className="bg-stone-900/80 border border-stone-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-6">
 
@@ -2596,13 +2472,9 @@ Thank you!`
 
                   </div>
 
-                  {/* =================================================
-                      PLANETARY DEGREES + CHARA KARAKA
-                  ================================================= */}
+                  {/* PLANETARY DEGREES + CHARA KARAKA */}
 
                   <div className="bg-stone-900/80 border border-stone-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-5 sm:space-y-6">
-
-                    {/* Header */}
 
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
@@ -2623,8 +2495,6 @@ Thank you!`
                         </div>
 
                       </div>
-
-                      {/* Controls */}
 
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
 
@@ -2694,8 +2564,6 @@ Thank you!`
 
                     </div>
 
-                    {/* Explanation */}
-
                     <div className="bg-stone-950 border border-stone-800 rounded-2xl p-4">
 
                       <p className="text-xs leading-relaxed text-stone-400">
@@ -2713,8 +2581,6 @@ Thank you!`
                       </p>
 
                     </div>
-
-                    {/* Planet Table */}
 
                     <div className="overflow-x-auto">
 
