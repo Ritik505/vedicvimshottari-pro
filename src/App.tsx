@@ -1459,6 +1459,82 @@ Thank you!`
   };
 
   // ============================================================
+// PDF AUTHOR STAMP
+// ============================================================
+
+const drawRitikVermaStamp = (
+  doc: jsPDF,
+  x: number,
+  y: number,
+  radius = 18
+) => {
+  // Outer circle
+  doc.setDrawColor(120, 75, 35);
+  doc.setLineWidth(0.8);
+  doc.circle(x, y, radius, "S");
+
+  // Inner circle
+  doc.setDrawColor(145, 95, 45);
+  doc.setLineWidth(0.35);
+  doc.circle(x, y, radius - 2.5, "S");
+
+  // Small center mark
+  doc.setFont("times", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(120, 75, 35);
+
+  doc.text(
+    "RITIK VERMA",
+    x,
+    y + 2,
+    {
+      align: "center",
+    }
+  );
+
+  // Top text
+  doc.setFont("times", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(110, 70, 35);
+
+  doc.text(
+    "Vedic Vimshottari",
+    x,
+    y - 8,
+    {
+      align: "center",
+    }
+  );
+
+  // Bottom text
+
+  doc.setFont("times", "bold");
+doc.setFontSize(7);
+doc.setTextColor(110, 70, 35);
+
+doc.text(
+  "Astrologer",
+  x,
+  y + 10,
+  {
+    align: "center",
+  }
+);
+
+
+  // Decorative dots
+  doc.setFontSize(6);
+
+  doc.text("•", x - 11, y + 1.8, {
+    align: "center",
+  });
+
+  doc.text("•", x + 11, y + 1.8, {
+    align: "center",
+  });
+};
+
+  // ============================================================
   // PDF HELPERS
   // ============================================================
 
@@ -1624,30 +1700,47 @@ Thank you!`
     let yPosition = 16;
 
     const addFooter = () => {
-      const pageCount = doc.getNumberOfPages();
+  const pageCount = doc.getNumberOfPages();
 
-      for (let i = 1; i <= pageCount; i += 1) {
-        doc.setPage(i);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        doc.setTextColor(120);
+  for (
+    let i = 1;
+    i <= pageCount;
+    i++
+  ) {
+    doc.setPage(i);
 
-        doc.text(
-          "© 2026 VedicVimshottari Pro™. Developed by Ritik Verma. All rights reserved.",
-          105,
-          289,
-          { align: "center" }
-        );
+    doc.setFontSize(8);
+    doc.setTextColor(120);
 
-        doc.text(
-          `Page ${i} of ${pageCount}`,
-          200,
-          289,
-          { align: "right" }
-        );
+    doc.text(
+      "© 2026 VedicVimshottari Pro™. Developed by Ritik Verma. All rights reserved.",
+      105,
+      290,
+      {
+        align: "center",
       }
-    };
+    );
 
+    doc.text(
+      `Page ${i} of ${pageCount}`,
+      200,
+      290,
+      {
+        align: "right",
+      }
+    );
+
+    // Stamp only on the final page
+    if (i === pageCount) {
+      drawRitikVermaStamp(
+        doc,
+        172,
+        260,
+        18
+      );
+    }
+  }
+};
     const ensureRoom = (requiredHeight: number) => {
       if (yPosition + requiredHeight > 278) {
         doc.addPage();
