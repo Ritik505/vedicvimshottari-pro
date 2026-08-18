@@ -120,6 +120,277 @@ function getRashiNumber(sign: string): number | string {
 }
 
 // ============================================================
+// PLANETARY PLACEMENT HELPERS
+// ============================================================
+
+const SIGN_LORDS: Record<string, string> = {
+  Aries: "Mars",
+  Taurus: "Venus",
+  Gemini: "Mercury",
+  Cancer: "Moon",
+  Leo: "Sun",
+  Virgo: "Mercury",
+  Libra: "Venus",
+  Scorpio: "Mars",
+  Sagittarius: "Jupiter",
+  Capricorn: "Saturn",
+  Aquarius: "Saturn",
+  Pisces: "Jupiter",
+};
+
+const NAKSHATRAS = [
+  { name: "Ashwini", lord: "Ketu" },
+  { name: "Bharani", lord: "Venus" },
+  { name: "Krittika", lord: "Sun" },
+  { name: "Rohini", lord: "Moon" },
+  { name: "Mrigashira", lord: "Mars" },
+  { name: "Ardra", lord: "Rahu" },
+  { name: "Punarvasu", lord: "Jupiter" },
+  { name: "Pushya", lord: "Saturn" },
+  { name: "Ashlesha", lord: "Mercury" },
+  { name: "Magha", lord: "Ketu" },
+  { name: "Purva Phalguni", lord: "Venus" },
+  { name: "Uttara Phalguni", lord: "Sun" },
+  { name: "Hasta", lord: "Moon" },
+  { name: "Chitra", lord: "Mars" },
+  { name: "Swati", lord: "Rahu" },
+  { name: "Vishakha", lord: "Jupiter" },
+  { name: "Anuradha", lord: "Saturn" },
+  { name: "Jyeshtha", lord: "Mercury" },
+  { name: "Mula", lord: "Ketu" },
+  { name: "Purva Ashadha", lord: "Venus" },
+  { name: "Uttara Ashadha", lord: "Sun" },
+  { name: "Shravana", lord: "Moon" },
+  { name: "Dhanishtha", lord: "Mars" },
+  { name: "Shatabhisha", lord: "Rahu" },
+  { name: "Purva Bhadrapada", lord: "Jupiter" },
+  { name: "Uttara Bhadrapada", lord: "Saturn" },
+  { name: "Revati", lord: "Mercury" },
+];
+
+function getSignLord(sign: string): string {
+  return SIGN_LORDS[sign] || "—";
+}
+
+function getNakshatraData(
+  sign: string,
+  degreeInSign: number
+) {
+  const rashiNumber =
+    RASHI_NUMBERS[sign];
+
+  if (
+    !rashiNumber ||
+    !Number.isFinite(degreeInSign)
+  ) {
+    return {
+      name: "—",
+      lord: "—",
+    };
+  }
+
+  // Convert sign + degree within sign
+  // into absolute sidereal longitude.
+  //
+  // Aries = 0°–30°
+  // Taurus = 30°–60°
+  // ...
+  // Pisces = 330°–360°
+  const absoluteLongitude =
+    (rashiNumber - 1) * 30 +
+    degreeInSign;
+
+  const normalized =
+    ((absoluteLongitude % 360) + 360) % 360;
+
+  // One Nakshatra = 13°20'
+  const nakshatraSize =
+    360 / 27;
+
+  const nakshatraIndex = Math.floor(
+    normalized / nakshatraSize
+  );
+
+  return (
+    NAKSHATRAS[
+      Math.min(
+        26,
+        Math.max(
+          0,
+          nakshatraIndex
+        )
+      )
+    ] || {
+      name: "—",
+      lord: "—",
+    }
+  );
+}
+
+// ============================================================
+// BAALADI AVASTHA / STATE
+// ============================================================
+
+function getPlanetaryState(
+  degreeInSign: number,
+  sign: string
+): string {
+  const degree =
+    ((degreeInSign % 30) + 30) % 30;
+
+  const evenSign = [
+    "Taurus",
+    "Cancer",
+    "Virgo",
+    "Scorpio",
+    "Capricorn",
+    "Pisces",
+  ].includes(sign);
+
+  if (!evenSign) {
+    if (degree < 6) return "Bala";
+    if (degree < 12) return "Kumara";
+    if (degree < 18) return "Yuva";
+    if (degree < 24) return "Vriddha";
+    return "Mrita";
+  }
+
+  if (degree < 6) return "Mrita";
+  if (degree < 12) return "Vriddha";
+  if (degree < 18) return "Yuva";
+  if (degree < 24) return "Kumara";
+  return "Bala";
+}
+
+// ============================================================
+// PLANETARY STATUS / DIGNITY
+// ============================================================
+
+const PLANETARY_DIGNITY: Record<
+  string,
+  {
+    own: string[];
+    exalted: string[];
+    debilitated: string;
+  }
+> = {
+  Sun: {
+    own: ["Leo"],
+    exalted: ["Aries"],
+    debilitated: "Libra",
+  },
+  Moon: {
+    own: ["Cancer"],
+    exalted: ["Taurus"],
+    debilitated: "Scorpio",
+  },
+  Mars: {
+    own: ["Aries", "Scorpio"],
+    exalted: ["Capricorn"],
+    debilitated: "Cancer",
+  },
+  Mercury: {
+    own: ["Gemini", "Virgo"],
+    exalted: ["Virgo"],
+    debilitated: "Pisces",
+  },
+  Jupiter: {
+    own: ["Sagittarius", "Pisces"],
+    exalted: ["Cancer"],
+    debilitated: "Capricorn",
+  },
+  Venus: {
+    own: ["Taurus", "Libra"],
+    exalted: ["Pisces"],
+    debilitated: "Virgo",
+  },
+  Saturn: {
+    own: ["Capricorn", "Aquarius"],
+    exalted: ["Libra"],
+    debilitated: "Aries",
+  },
+  Rahu: {
+    own: ["Aquarius"],
+    exalted: [],
+    debilitated: "Scorpio",
+  },
+  Ketu: {
+    own: ["Scorpio"],
+    exalted: [],
+    debilitated: "Taurus",
+  },
+};
+
+const NATURAL_FRIENDS: Record<string, string[]> = {
+  Sun: ["Moon", "Mars", "Jupiter"],
+  Moon: ["Sun", "Mercury"],
+  Mars: ["Sun", "Moon", "Jupiter"],
+  Mercury: ["Sun", "Venus"],
+  Jupiter: ["Sun", "Moon", "Mars"],
+  Venus: ["Mercury", "Saturn"],
+  Saturn: ["Mercury", "Venus"],
+  Rahu: ["Mercury", "Venus", "Saturn"],
+  Ketu: ["Sun", "Mars", "Jupiter"],
+};
+
+const NATURAL_ENEMIES: Record<string, string[]> = {
+  Sun: ["Venus", "Saturn"],
+  Moon: [],
+  Mars: ["Mercury"],
+  Mercury: ["Moon"],
+  Jupiter: ["Mercury", "Venus"],
+  Venus: ["Sun", "Moon"],
+  Saturn: ["Sun", "Moon", "Mars"],
+  Rahu: ["Sun", "Moon"],
+  Ketu: ["Moon", "Venus"],
+};
+
+function getPlanetStatus(
+  planet: string,
+  sign: string
+): string {
+  const dignity = PLANETARY_DIGNITY[planet];
+
+  if (!dignity) {
+    return "—";
+  }
+
+  if (dignity.exalted.includes(sign)) {
+    return "EXALTED";
+  }
+
+  if (dignity.debilitated === sign) {
+    return "DEBILITATED";
+  }
+
+  if (dignity.own.includes(sign)) {
+    // Preserve the terminology used by the reference-style table.
+    if (planet === "Moon" && sign === "Cancer") {
+      return "MOOLTRIKONA";
+    }
+    return "OWNED";
+  }
+
+  const signLord = SIGN_LORDS[sign];
+
+  if (
+    signLord &&
+    NATURAL_FRIENDS[planet]?.includes(signLord)
+  ) {
+    return "FRIENDLY";
+  }
+
+  if (
+    signLord &&
+    NATURAL_ENEMIES[planet]?.includes(signLord)
+  ) {
+    return "ENEMY";
+  }
+
+  return "—";
+}
+
+// ============================================================
 // TRADITIONAL NORTH INDIAN KUNDLI GEOMETRY
 //
 // Correct North Indian house arrangement:
@@ -2144,35 +2415,60 @@ Thank you!`
                           </h4>
 
                           <p className="text-[11px] text-stone-500 mt-1">
-                            D1 house, Rashi number and sidereal degree
+                            Sign, sign lord, Nakshatra, Nakshatra lord,
+                            degree, retrograde, house, state and status
                           </p>
 
                         </div>
 
                       </div>
 
-                      <div className="overflow-x-auto">
+                      <div className="overflow-x-auto rounded-xl border border-stone-800">
 
-                        <table className="w-full min-w-[560px] text-xs">
+                        <table className="w-full min-w-[1250px] text-xs">
 
                           <thead>
 
-                            <tr className="border-b border-stone-800">
+                            <tr className="border-b border-stone-800 bg-stone-950">
 
-                              <th className="text-left px-3 py-2 text-[9px] uppercase tracking-widest text-stone-500">
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
                                 Planet
                               </th>
 
-                              <th className="text-left px-3 py-2 text-[9px] uppercase tracking-widest text-stone-500">
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                                Sign
+                              </th>
+
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                                Sign Lord
+                              </th>
+
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                                Nakshatra
+                              </th>
+
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                                Naksh Lord
+                              </th>
+
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                                Degree
+                              </th>
+
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                                Retro
+                              </th>
+
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
                                 House
                               </th>
 
-                              <th className="text-left px-3 py-2 text-[9px] uppercase tracking-widest text-stone-500">
-                                Rashi
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                                State
                               </th>
 
-                              <th className="text-left px-3 py-2 text-[9px] uppercase tracking-widest text-stone-500">
-                                Degree
+                              <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                                Sign Status
                               </th>
 
                             </tr>
@@ -2182,36 +2478,170 @@ Thank you!`
                           <tbody>
 
                             {result.kundli.planets.map(
-                              (planet) => (
+                              (planet) => {
 
-                                <tr
-                                  key={
-                                    planet.planet
-                                  }
-                                  className="border-b border-stone-800/60"
-                                >
+                                const planetaryPosition =
+                                  result.planetaryPositions.find(
+                                    (item) =>
+                                      item.planet ===
+                                      planet.planet
+                                  );
 
-                                  <td className="px-3 py-2.5 text-white font-medium">
-                                    {planet.planet}
-                                  </td>
+                                const rawPosition =
+                                  planetaryPosition as any;
 
-                                  <td className="px-3 py-2.5 text-amber-400 font-semibold">
-                                    {planet.house}
-                                  </td>
+                                const rawPlanet =
+                                  planet as any;
 
-                                  <td className="px-3 py-2.5 text-stone-300">
-                                    {getRashiNumber(
-                                      planet.sign
-                                    )}
-                                  </td>
+                                  const degreeInSign =
+                             planetaryPosition?.degreeInSign ??
+  0;
 
-                                  <td className="px-3 py-2.5 font-mono text-stone-300">
-                                    {planet.formattedDegree}
-                                  </td>
+                                  const nakshatra =
+                                   getNakshatraData(
+                                    planet.sign,
+                                    degreeInSign
+                                      );
 
-                                </tr>
+                                const signLord =
+                                  getSignLord(
+                                    planet.sign
+                                  );
 
-                              )
+                                const state =
+                                  getPlanetaryState(
+                                    degreeInSign,
+                                    planet.sign
+                                  );
+
+                                const status =
+                                  getPlanetStatus(
+                                    planet.planet,
+                                    planet.sign
+                                  );
+
+                                const retrogradeValue =
+                                  typeof rawPosition?.retrograde ===
+                                    "boolean"
+                                    ? rawPosition.retrograde
+                                    : typeof rawPosition?.isRetrograde ===
+                                        "boolean"
+                                      ? rawPosition.isRetrograde
+                                      : typeof rawPlanet?.retrograde ===
+                                          "boolean"
+                                        ? rawPlanet.retrograde
+                                        : typeof rawPlanet?.isRetrograde ===
+                                            "boolean"
+                                          ? rawPlanet.isRetrograde
+                                          : null;
+
+                                const retro =
+                                  retrogradeValue === null
+                                    ? "—"
+                                    : retrogradeValue
+                                      ? "Yes"
+                                      : "No";
+
+                                return (
+
+                                  <tr
+                                    key={
+                                      planet.planet
+                                    }
+                                    className="border-b border-stone-800/60 hover:bg-white/[0.025] transition-colors"
+                                  >
+
+                                    {/* PLANET */}
+
+                                    <td className="px-3 py-3 text-white font-semibold whitespace-nowrap">
+                                      {planet.planet}
+                                    </td>
+
+                                    {/* SIGN */}
+
+                                    <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                      {planet.sign}
+                                    </td>
+
+                                    {/* SIGN LORD */}
+
+                                    <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                      {signLord}
+                                    </td>
+
+                                    {/* NAKSHATRA */}
+
+                                    <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                      {nakshatra.name}
+                                    </td>
+
+                                    {/* NAKSHATRA LORD */}
+
+                                    <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                      {nakshatra.lord}
+                                    </td>
+
+                                    {/* DEGREE */}
+
+                                    <td className="px-3 py-3 font-mono text-amber-400 font-semibold whitespace-nowrap">
+                                      {planet.formattedDegree}
+                                    </td>
+
+                                    {/* RETRO */}
+
+                                    <td
+                                      className={cn(
+                                        "px-3 py-3 font-medium",
+                                        retro === "Yes"
+                                          ? "text-amber-400"
+                                          : retro === "No"
+                                            ? "text-stone-300"
+                                            : "text-stone-600"
+                                      )}
+                                    >
+                                      {retro}
+                                    </td>
+
+                                    {/* HOUSE — KEPT */}
+
+                                    <td className="px-3 py-3 text-amber-400 font-bold">
+                                      {planet.house}
+                                    </td>
+
+                                    {/* STATE */}
+
+                                    <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                      {state}
+                                    </td>
+
+                                    {/* STATUS */}
+
+                                    <td
+                                      className={cn(
+                                        "px-3 py-3 font-semibold whitespace-nowrap",
+                                        status === "EXALTED" &&
+                                          "text-emerald-400",
+                                        status === "OWNED" &&
+                                          "text-amber-400",
+                                        status === "MOOLTRIKONA" &&
+                                          "text-amber-400",
+                                        status === "FRIENDLY" &&
+                                          "text-sky-400",
+                                        status === "ENEMY" &&
+                                          "text-red-400",
+                                        status === "DEBILITATED" &&
+                                          "text-red-500",
+                                        status === "—" &&
+                                          "text-stone-600"
+                                      )}
+                                    >
+                                      {status}
+                                    </td>
+
+                                  </tr>
+
+                                );
+                              }
                             )}
 
                           </tbody>
