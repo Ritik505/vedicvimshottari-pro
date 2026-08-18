@@ -1458,205 +1458,555 @@ Thank you!`
     );
   };
 
-  // ==========================================================
-  // EXPORT PDF
-  // ==========================================================
+  // ============================================================
+  // PDF HELPERS
+  // ============================================================
 
-  const exportPDF = () => {
+  const addPdfSectionTitle = (
+    doc: jsPDF,
+    title: string,
+    y: number
+  ) => {
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(184, 134, 11);
+    doc.text(title, 14, y);
+
+    doc.setDrawColor(184, 134, 11);
+    doc.setLineWidth(0.35);
+    doc.line(14, y + 2.5, 196, y + 2.5);
+
+    return y + 9;
+  };
+
+  const drawKundliPDF = (
+    doc: jsPDF,
+    kundli: KundliData,
+    startY: number
+  ) => {
+    const x = 35;
+    const y = startY;
+    const size = 140;
+    const centerX = x + size / 2;
+    const centerY = y + size / 2;
+
+    const point = (px: number, py: number) => ({
+      x: x + (px / 100) * size,
+      y: y + (py / 100) * size,
+    });
+
+    const drawSegment = (
+      a: [number, number],
+      b: [number, number]
+    ) => {
+      const p1 = point(a[0], a[1]);
+      const p2 = point(b[0], b[1]);
+      doc.line(p1.x, p1.y, p2.x, p2.y);
+    };
+
+    doc.setFillColor(248, 242, 230);
+    doc.setDrawColor(118, 85, 53);
+    doc.setLineWidth(0.9);
+    doc.rect(x, y, size, size, "FD");
+
+    // Outer diamond.
+    doc.setLineWidth(0.75);
+    drawSegment([50, 1], [99, 50]);
+    drawSegment([99, 50], [50, 99]);
+    drawSegment([50, 99], [1, 50]);
+    drawSegment([1, 50], [50, 1]);
+
+    // Four center diagonals.
+    drawSegment([1, 1], [50, 50]);
+    drawSegment([99, 1], [50, 50]);
+    drawSegment([99, 99], [50, 50]);
+    drawSegment([1, 99], [50, 50]);
+
+    // House separators.
+    Object.values(NORTH_INDIAN_HOUSE_POLYGONS).forEach((poly) => {
+      const pts = poly.split(" ").map((pair) => {
+        const [px, py] = pair.split(",").map(Number);
+        return [px, py] as [number, number];
+      });
+
+      for (let i = 0; i < pts.length; i += 1) {
+        const a = pts[i];
+        const b = pts[(i + 1) % pts.length];
+
+        // Skip edges already represented by the outer frame/diamond.
+        const isOuter =
+          (a[0] === 0 && b[0] === 0) ||
+          (a[0] === 100 && b[0] === 100) ||
+          (a[1] === 0 && b[1] === 0) ||
+          (a[1] === 100 && b[1] === 100);
+
+        if (!isOuter) {
+          drawSegment(a, b);
+        }
+      }
+    });
+
+    const houseTextPositions = NORTH_INDIAN_TEXT_POSITIONS;
+    const normalHouseByNumber = new Map(
+      kundli.houses.map((house: any) => [house.house, house])
+    );
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(107, 90, 68);
+
+    for (let houseNumber = 1; houseNumber <= 12; houseNumber += 1) {
+      const house = normalHouseByNumber.get(houseNumber) as any;
+      if (!house) continue;
+
+      const pos = houseTextPositions[houseNumber];
+      const hp = point(pos.x, pos.y);
+      const rashiNumber = getRashiNumber(house.sign);
+      const planets = Array.isArray(house.planets) ? house.planets : [];
+
+      doc.setFontSize(7);
+      doc.setTextColor(107, 90, 68);
+      doc.text(`H${houseNumber}`, hp.x, hp.y - 3, { align: "center" });
+
+      doc.setFontSize(10);
+      doc.setTextColor(31, 100, 123);
+      doc.text(String(rashiNumber), hp.x, hp.y + 3, { align: "center" });
+
+      if (planets.length > 0) {
+        doc.setFontSize(7.5);
+        doc.setTextColor(55, 55, 55);
+        doc.text(
+          planets.map((planet: string) => getPlanetAbbreviation(planet)).join("  "),
+          hp.x,
+          hp.y + 8,
+          { align: "center" }
+        );
+      }
+    }
+
+    doc.setFontSize(7);
+    doc.setTextColor(118, 85, 53);
+    doc.text("Lagna", centerX, centerY - 3, { align: "center" });
+    doc.setFontSize(13);
+    doc.setTextColor(139, 47, 47);
+    doc.text(
+      String(getRashiNumber(kundli.ascendantSign)),
+      centerX,
+      centerY + 4,
+      { align: "center" }
+    );
+    doc.setFontSize(7);
+    doc.setTextColor(47, 93, 138);
+    doc.text(
+      kundli.ascendantFormattedDegree || "",
+      centerX,
+      centerY + 10,
+      { align: "center" }
+    );
+
+    return y + size;
+  };
+
+  // ============================================================
+  // EXPORT PDF
+  // ============================================================
+
+  const exportPDF = async () => {
     if (!result) {
       return;
     }
 
-    const doc =
-      new jsPDF();
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
 
-    let yPosition = 20;
+    let yPosition = 16;
 
     const addFooter = () => {
-      const pageCount =
-        doc.getNumberOfPages();
+      const pageCount = doc.getNumberOfPages();
 
-      for (
-        let i = 1;
-        i <= pageCount;
-        i++
-      ) {
+      for (let i = 1; i <= pageCount; i += 1) {
         doc.setPage(i);
-
-        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
         doc.setTextColor(120);
 
         doc.text(
           "© 2026 VedicVimshottari Pro™. Developed by Ritik Verma. All rights reserved.",
           105,
-          290,
-          {
-            align: "center",
-          }
+          289,
+          { align: "center" }
         );
 
         doc.text(
           `Page ${i} of ${pageCount}`,
           200,
-          290,
-          {
-            align: "right",
-          }
+          289,
+          { align: "right" }
         );
       }
     };
 
+    const ensureRoom = (requiredHeight: number) => {
+      if (yPosition + requiredHeight > 278) {
+        doc.addPage();
+        yPosition = 16;
+      }
+    };
+
+    // ------------------------------------------------------------
+    // REPORT HEADER
+    // ------------------------------------------------------------
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
-    doc.setTextColor(
-      184,
-      134,
-      11
-    );
+    doc.setTextColor(184, 134, 11);
+    doc.text("Vimshottari Dasha Report", 105, yPosition, {
+      align: "center",
+    });
 
+    yPosition += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100);
     doc.text(
-      "Vimshottari Dasha Report",
+      `Generated on: ${DateTime.now().toLocaleString(DateTime.DATETIME_MED)}`,
       105,
       yPosition,
-      {
-        align: "center",
-      }
+      { align: "center" }
     );
 
-    yPosition += 10;
-
+    yPosition += 9;
     doc.setFontSize(10);
-    doc.setTextColor(
-      100
+    doc.setTextColor(30);
+    // Use the same four timezone labels shown in the app's timezone selector.
+    const timezoneLabel: Record<string, string> = {
+      "Asia/Kolkata": "India (IST)",
+      "America/New_York": "New York (EST/EDT)",
+      "Europe/London": "London (GMT/BST)",
+      "UTC": "UTC",
+    };
+
+    const selectedTimezoneLabel =
+      timezoneLabel[timezone] ?? timezone;
+
+    doc.text(`Birth Date: ${dob} ${tob}`, 14, yPosition);
+    yPosition += 5.5;
+    doc.text(
+      `Timezone: ${selectedTimezoneLabel}`,
+      14,
+      yPosition
+    );
+    yPosition += 5.5;
+    doc.text(
+      `Latitude: ${Number(latitude).toFixed(4)}°`,
+      14,
+      yPosition
+    );
+    yPosition += 5.5;
+    doc.text(
+      `Longitude: ${Number(longitude).toFixed(4)}°`,
+      14,
+      yPosition
     );
 
+    // ------------------------------------------------------------
+    // 1. KUNDLI FIRST
+    // ------------------------------------------------------------
+    yPosition += 8;
+    yPosition = addPdfSectionTitle(doc, "Kundli", yPosition);
+
+    ensureRoom(150);
+    yPosition = drawKundliPDF(doc, result.kundli, yPosition) + 7;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(90);
     doc.text(
-      `Generated on: ${DateTime.now().toLocaleString(
-        DateTime.DATETIME_MED
-      )}`,
+      `Lagna: Rashi ${getRashiNumber(result.kundli.ascendantSign)} · ${result.kundli.ascendantFormattedDegree}`,
       105,
       yPosition,
-      {
-        align: "center",
+      { align: "center" }
+    );
+
+    // ------------------------------------------------------------
+    // 2. PLANETARY PLACEMENT
+    // ------------------------------------------------------------
+    yPosition += 11;
+    ensureRoom(55);
+    yPosition = addPdfSectionTitle(
+      doc,
+      "Planetary Placement",
+      yPosition
+    );
+
+    const planetaryRows = result.kundli.planets.map((planet: any) => {
+      const planetaryPosition = result.planetaryPositions.find(
+        (item) => item.planet === planet.planet
+      ) as any;
+
+      const degreeInSign = planetaryPosition?.degreeInSign ?? 0;
+      const nakshatra = getNakshatraData(planet.sign, degreeInSign);
+      const signLord = getSignLord(planet.sign);
+      const state = getPlanetaryState(degreeInSign, planet.sign);
+      const status = getPlanetStatus(planet.planet, planet.sign);
+
+      return [
+        planet.planet,
+        planet.sign,
+        signLord,
+        nakshatra.name,
+        nakshatra.lord,
+        planet.formattedDegree || `${degreeInSign.toFixed(2)}°`,
+        planet.house,
+        state,
+        status,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [[
+        "Planet",
+        "Sign",
+        "Sign Lord",
+        "Nakshatra",
+        "Naksh Lord",
+        "Degree",
+        "House",
+        "State",
+        "Sign Status",
+      ]],
+      body: planetaryRows,
+      theme: "grid",
+      styles: {
+        fontSize: 7,
+        cellPadding: 2.2,
+        textColor: [35, 35, 35],
+        lineColor: [210, 205, 195],
+        lineWidth: 0.2,
+      },
+      headStyles: {
+        fillColor: [70, 55, 40],
+        textColor: [255, 250, 240],
+        fontStyle: "bold",
+        fontSize: 6.8,
+      },
+      alternateRowStyles: {
+        fillColor: [250, 247, 240],
+      },
+      margin: {
+        left: 10,
+        right: 10,
+      },
+    });
+
+    yPosition = ((doc as any).lastAutoTable?.finalY || yPosition) + 10;
+
+    // ------------------------------------------------------------
+    // 3. CHARA KARAKA RANKING
+    // ------------------------------------------------------------
+    ensureRoom(55);
+    yPosition = addPdfSectionTitle(
+      doc,
+      "Chara Karaka Ranking",
+      yPosition
+    );
+
+    const currentKarakas = result.charaKarakas.map((item, index) => [
+      index + 1,
+      item.karaka,
+      item.planet,
+      getRashiNumber(item.sign),
+      item.formattedDegree,
+      item.planet === "Rahu"
+        ? item.formattedEffectiveDegree || "—"
+        : "—",
+    ]);
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [[
+        "Rank",
+        "Chara Karaka",
+        "Planet",
+        "Rashi",
+        "Degree",
+        "Effective Degree",
+      ]],
+      body: currentKarakas,
+      theme: "grid",
+      styles: {
+        fontSize: 8,
+        cellPadding: 2.5,
+        textColor: [35, 35, 35],
+        lineColor: [210, 205, 195],
+        lineWidth: 0.2,
+      },
+      headStyles: {
+        fillColor: [70, 55, 40],
+        textColor: [255, 250, 240],
+        fontStyle: "bold",
+        fontSize: 7,
+      },
+      alternateRowStyles: {
+        fillColor: [250, 247, 240],
+      },
+      margin: {
+        left: 22,
+        right: 22,
+      },
+    });
+
+    yPosition = ((doc as any).lastAutoTable?.finalY || yPosition) + 10;
+
+    // ------------------------------------------------------------
+    // 4. CHARA KARAKA RANKING — TRUE NODE
+    // 5. CHARA KARAKA RANKING — MEAN NODE
+    // ------------------------------------------------------------
+    const truePositions = await calculatePlanetaryPositions(
+      dob,
+      tob,
+      timezone,
+      "true"
+    );
+    const meanPositions = await calculatePlanetaryPositions(
+      dob,
+      tob,
+      timezone,
+      "mean"
+    );
+
+    const trueKarakas = calculateCharaKarakas(truePositions);
+    const meanKarakas = calculateCharaKarakas(meanPositions);
+
+    const addNodeKarakaTable = (
+      title: string,
+      karakas: CharaKaraka[]
+    ) => {
+      ensureRoom(55);
+      yPosition = addPdfSectionTitle(doc, title, yPosition);
+
+      const rows = karakas.map((item, index) => [
+        index + 1,
+        item.karaka,
+        item.planet,
+        getRashiNumber(item.sign),
+        item.formattedDegree,
+        item.planet === "Rahu"
+          ? item.formattedEffectiveDegree || "—"
+          : "—",
+      ]);
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [[
+          "Rank",
+          "Chara Karaka",
+          "Planet",
+          "Rashi",
+          "Degree",
+          "Effective Degree",
+        ]],
+        body: rows,
+        theme: "grid",
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.5,
+          textColor: [35, 35, 35],
+          lineColor: [210, 205, 195],
+          lineWidth: 0.2,
+        },
+        headStyles: {
+          fillColor: [70, 55, 40],
+          textColor: [255, 250, 240],
+          fontStyle: "bold",
+          fontSize: 7,
+        },
+        alternateRowStyles: {
+          fillColor: [250, 247, 240],
+        },
+        margin: {
+          left: 22,
+          right: 22,
+        },
+      });
+
+      yPosition = ((doc as any).lastAutoTable?.finalY || yPosition) + 10;
+    };
+
+    addNodeKarakaTable(
+      "Chara Karaka Ranking — True Node",
+      trueKarakas
+    );
+
+    addNodeKarakaTable(
+      "Chara Karaka Ranking — Mean Node",
+      meanKarakas
+    );
+
+    // ------------------------------------------------------------
+    // 6. DASHA — KEEP EXISTING FORMAT
+    // ------------------------------------------------------------
+    yPosition += 2;
+
+    result.dashas.forEach((md) => {
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
       }
-    );
 
-    yPosition += 15;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(184, 134, 11);
+      doc.text(
+        `${md.planet} Mahadasha (${md.start} — ${md.end})`,
+        20,
+        yPosition
+      );
 
-    doc.setFontSize(12);
-    doc.setTextColor(
-      0,
-      0,
-      0
-    );
+      yPosition += 8;
 
-    doc.text(
-      `Birth Date: ${dob} ${tob}`,
-      20,
-      yPosition
-    );
+      const antardashaData =
+        md.subDashas?.map((ad: any) => [
+          ad.planet,
+          ad.start,
+          ad.end,
+        ]) || [];
 
-    yPosition += 7;
+      autoTable(doc, {
+        startY: yPosition,
+        head: [[
+          "Antardasha Lord",
+          "Start Time",
+          "End Time",
+        ]],
+        body: antardashaData,
+        theme: "grid",
+        styles: {
+          fontSize: 8,
+        },
+        headStyles: {
+          fillColor: [184, 134, 11],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+        },
+        margin: {
+          left: 20,
+          right: 20,
+        },
+        didDrawPage: (data) => {
+          yPosition = data.cursor?.y || 20;
+        },
+      });
 
-    doc.text(
-      `Location: ${location} (${timezone})`,
-      20,
-      yPosition
-    );
-
-    yPosition += 7;
-
-    doc.text(
-      `Nakshatra: ${result.info.nakshatra}`,
-      20,
-      yPosition
-    );
-
-    yPosition += 15;
-
-    result.dashas.forEach(
-      (md) => {
-        if (
-          yPosition > 250
-        ) {
-          doc.addPage();
-          yPosition = 20;
-        }
-
-        doc.setFontSize(14);
-        doc.setTextColor(
-          184,
-          134,
-          11
-        );
-
-        doc.text(
-          `${md.planet} Mahadasha (${md.start} — ${md.end})`,
-          20,
-          yPosition
-        );
-
-        yPosition += 8;
-
-        const antardashaData =
-          md.subDashas?.map(
-            (ad: any) => [
-              ad.planet,
-              ad.start,
-              ad.end,
-            ]
-          ) || [];
-
-        autoTable(
-          doc,
-          {
-            startY:
-              yPosition,
-            head: [[
-              "Antardasha Lord",
-              "Start Time",
-              "End Time",
-            ]],
-            body:
-              antardashaData,
-            theme:
-              "grid",
-            styles: {
-              fontSize: 8,
-            },
-            headStyles: {
-              fillColor: [
-                184,
-                134,
-                11,
-              ],
-            },
-            margin: {
-              left: 20,
-              right: 20,
-            },
-            didDrawPage:
-              (data) => {
-                yPosition =
-                  data.cursor?.y ||
-                  20;
-              },
-          }
-        );
-
-        yPosition =
-          (
-            doc as any
-          ).lastAutoTable
-            .finalY +
-          12;
-      }
-    );
+      yPosition =
+        ((doc as any).lastAutoTable?.finalY || yPosition) + 12;
+    });
 
     addFooter();
 
-    doc.save(
-      `Vedic_Dasha_${dob}.pdf`
-    );
+    doc.save(`Vedic_Dasha_${dob}.pdf`);
   };
 
   // ==========================================================
