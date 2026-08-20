@@ -1713,7 +1713,7 @@ doc.text(
     doc.setTextColor(120);
 
     doc.text(
-      "© 2026 VedicVimshottari Pro™. Developed by Ritik Verma. All rights reserved.",
+      "© 2026 Vedic Vimshottari™. Developed by Ritik Verma. All rights reserved.",
       105,
       290,
       {
@@ -3816,7 +3816,7 @@ doc.text(
 
           <p className="text-stone-400 text-sm">
 
-            © 2026 VedicVimshottari Pro™.
+            © 2026 Vedic Vimshottari™.
             Developed by{" "}
 
             <span className="text-white font-medium">

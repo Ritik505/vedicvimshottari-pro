@@ -1,4 +1,4 @@
-# Vedic Vimshottari Pro™
+# Vedic Vimshottari™
 ### High-Precision 5-Level Dasha Astrology Engine
 
 Vedic Vimshottari Pro™ is a professional-grade astronomical and astrological engine engineered for high-precision Vimshottari Dasha calculations down to the second. Built on authentic Vedic astrology principles using the Lahiri (Chitra Paksha) Ayanamsa, this application provides multi-level Dasha hierarchies, age-based period lookups, interactive planetary maturity references, and consultation-ready PDF report generation.
@@ -106,7 +106,7 @@ src/
 **Developed By:** Ritik Verma  
 *Astrology Software Developer*
 
-**Copyright:** © 2026 VedicVimshottari Pro™. All rights reserved.
+**Copyright:** © 2026 VedicVimshottari™. All rights reserved.
 
 ---
 
