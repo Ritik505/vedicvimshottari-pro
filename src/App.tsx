@@ -479,6 +479,106 @@ function getVisibleHouseNatalHouse(
 }
 
 // ============================================================
+// DRISHTI / HOUSE LORDSHIP HELPERS
+// ============================================================
+
+// Aspect offsets are counted from the house occupied by the planet.
+// Rahu/Ketu use the 5th, 7th and 9th aspect convention requested for this app.
+const PLANET_DRISHTI_OFFSETS: Record<string, number[]> = {
+  Sun: [7],
+  Moon: [7],
+  Mars: [4, 7, 8],
+  Mercury: [7],
+  Jupiter: [5, 7, 9],
+  Venus: [7],
+  Saturn: [3, 7, 10],
+  Rahu: [5, 7, 9],
+  Ketu: [5, 7, 9],
+};
+
+const PLANET_SYMBOLS: Record<string, string> = {
+  Sun: "☉",
+  Moon: "☽",
+  Mars: "♂",
+  Mercury: "☿",
+  Jupiter: "♃",
+  Venus: "♀",
+  Saturn: "♄",
+  Rahu: "☊",
+  Ketu: "☋",
+};
+
+function getVisibleHouseFromNatalHouse(
+  natalHouse: number,
+  startNatalHouse: number
+): number {
+  return ((natalHouse - startNatalHouse + 12) % 12) + 1;
+}
+
+function getAspectTargetHouse(
+  occupiedNatalHouse: number,
+  aspectFromPlanet: number,
+  startNatalHouse: number
+): number {
+  const targetNatalHouse =
+    ((occupiedNatalHouse - 1 + aspectFromPlanet - 1) % 12) + 1;
+
+  return getVisibleHouseFromNatalHouse(
+    targetNatalHouse,
+    startNatalHouse
+  );
+}
+
+function formatOrdinalHouseNumber(value: number): string {
+  const mod100 = value % 100;
+
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${value}th`;
+  }
+
+  switch (value % 10) {
+    case 1:
+      return `${value}st`;
+    case 2:
+      return `${value}nd`;
+    case 3:
+      return `${value}rd`;
+    default:
+      return `${value}th`;
+  }
+}
+
+function getOwnedVisibleHouses(
+  planet: string,
+  kundli: KundliData,
+  startNatalHouse: number
+): number[] {
+  // Rahu/Ketu are not treated as classical sign lords here.
+  if (planet === "Rahu" || planet === "Ketu") {
+    return [];
+  }
+
+  const ownedHouses: number[] = [];
+
+  for (let visibleHouse = 1; visibleHouse <= 12; visibleHouse += 1) {
+    const natalHouse = getVisibleHouseNatalHouse(
+      visibleHouse,
+      startNatalHouse
+    );
+
+    const house = kundli.houses.find(
+      (item: any) => item.house === natalHouse
+    );
+
+    if (house && getSignLord(house.sign) === planet) {
+      ownedHouses.push(visibleHouse);
+    }
+  }
+
+  return ownedHouses;
+}
+
+// ============================================================
 // NORTH INDIAN HOUSE LABEL
 // ============================================================
 
@@ -563,8 +663,10 @@ function NorthIndianHouseLabel({
 
 function D1KundliChart({
   kundli,
+  onLagnaHouseChange,
 }: {
   kundli: KundliData;
+  onLagnaHouseChange?: (natalHouse: number) => void;
 }) {
   const [startNatalHouse, setStartNatalHouse] = useState(1);
 
@@ -601,11 +703,13 @@ function D1KundliChart({
     }
 
     setStartNatalHouse(selectedNatalHouse);
+    onLagnaHouseChange?.(selectedNatalHouse);
     setSelectedVisibleHouse(null);
   };
 
   const restoreOriginalLagna = () => {
     setStartNatalHouse(1);
+    onLagnaHouseChange?.(1);
     setSelectedVisibleHouse(null);
   };
 
@@ -1114,6 +1218,12 @@ export default function App() {
   const [targetAge, setTargetAge] =
     useState("");
 
+  // Current visible Lagna mapping.
+  // 1 = original natal chart; another value means the selected natal house
+  // has been promoted to visible House 1 in the derived Kundli view.
+  const [activeLagnaNatalHouse, setActiveLagnaNatalHouse] =
+    useState(1);
+
   const [loading, setLoading] =
     useState(false);
 
@@ -1281,6 +1391,8 @@ Thank you!`
   const handleCalculate = async (
     selectedNodeType: LunarNodeType = nodeType
   ) => {
+    // A fresh calculation always starts from the natal Lagna.
+    setActiveLagnaNatalHouse(1);
     setLoading(true);
     setError(null);
     setSelectedPath([]);
@@ -2841,6 +2953,9 @@ doc.text(
                         kundli={
                           result.kundli
                         }
+                        onLagnaHouseChange={
+                          setActiveLagnaNatalHouse
+                        }
                       />
 
                     </div>
@@ -3095,6 +3210,128 @@ doc.text(
 
                     </div>
 
+                  </div>
+
+                  {/* PLANETARY DRISHTI & HOUSE LORDSHIP */}
+                  <div className="bg-stone-900/80 border border-stone-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-white">
+                          Planetary Drishti &amp; House Lordship
+                        </h4>
+                        <p className="text-[11px] text-stone-500 mt-1">
+                          Which houses each planet aspects and which houses it owns in the current Kundli.
+                        </p>
+                      </div>
+
+                      <span className="w-fit px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] sm:text-[10px] uppercase tracking-widest text-amber-400 font-semibold">
+                        {activeLagnaNatalHouse === 1
+                          ? "Natal Lagna"
+                          : `Derived Lagna · Natal H${activeLagnaNatalHouse}`}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-stone-800">
+                      <table className="w-full min-w-[760px] text-xs">
+                        <thead>
+                          <tr className="border-b border-stone-800 bg-stone-950">
+                            <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                              Planet
+                            </th>
+                            <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                              Placed House
+                            </th>
+                            <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                              Drishti On House
+                            </th>
+                            <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                              Owns House
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {result.kundli.planets.map((planet: any) => {
+                            const occupiedNatalHouse = Number(planet.house);
+                            const placedVisibleHouse =
+                              Number.isFinite(occupiedNatalHouse)
+                                ? getVisibleHouseFromNatalHouse(
+                                    occupiedNatalHouse,
+                                    activeLagnaNatalHouse
+                                  )
+                                : null;
+
+                            const aspectOffsets =
+                              PLANET_DRISHTI_OFFSETS[planet.planet] || [7];
+
+                            const drishtiText =
+                              Number.isFinite(occupiedNatalHouse)
+                                ? aspectOffsets
+                                    .map((aspectFromPlanet) => {
+                                      const targetHouse =
+                                        getAspectTargetHouse(
+                                          occupiedNatalHouse,
+                                          aspectFromPlanet,
+                                          activeLagnaNatalHouse
+                                        );
+                                      return `${formatOrdinalHouseNumber(
+                                        aspectFromPlanet
+                                      )} → H${targetHouse}`;
+                                    })
+                                    .join(", " )
+                                : "—";
+
+                            const ownedHouses =
+                              getOwnedVisibleHouses(
+                                planet.planet,
+                                result.kundli,
+                                activeLagnaNatalHouse
+                              );
+
+                            return (
+                              <tr
+                                key={planet.planet}
+                                className="border-b border-stone-800/60 hover:bg-white/[0.025] transition-colors"
+                              >
+                                <td className="px-3 py-3 text-white font-semibold whitespace-nowrap">
+                                  <span className="inline-flex items-center gap-2">
+                                    <span className="text-base text-amber-400 w-5 text-center">
+                                      {PLANET_SYMBOLS[planet.planet] || "•"}
+                                    </span>
+                                    {planet.planet}
+                                  </span>
+                                </td>
+
+                                <td className="px-3 py-3 text-amber-400 font-bold whitespace-nowrap">
+                                  {placedVisibleHouse
+                                    ? `H${placedVisibleHouse}`
+                                    : "—"}
+                                </td>
+
+                                <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                  {drishtiText}
+                                </td>
+
+                                <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                  {ownedHouses.length > 0
+                                    ? ownedHouses
+                                        .map((house) => `H${house}`)
+                                        .join(", ")
+                                    : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-amber-500/10 bg-amber-500/5 px-3 py-2.5 text-[10px] leading-relaxed text-stone-500">
+                      <span className="text-amber-400 font-semibold">Drishti rule:</span>{" "}
+                      Sun, Moon, Mercury and Venus → 7th; Mars → 4th, 7th, 8th; Jupiter → 5th, 7th, 9th; Saturn → 3rd, 7th, 10th; Rahu and Ketu → 5th, 7th, 9th as configured for this app.
+                      House ownership is recalculated from the current visible Lagna, so it changes when you use
+                      <span className="text-amber-400 font-semibold"> Start Kundli from House</span>.
+                    </div>
                   </div>
 
                   {/* AGE DASHA */}
