@@ -3334,6 +3334,93 @@ doc.text(
                     </div>
                   </div>
 
+                  {/* PLANETARY DIGNITY REFERENCE */}
+                  <div className="bg-stone-900/80 border border-stone-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
+                    <div className="flex items-center justify-between gap-2 mb-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-white">
+                          Planetary Dignity Reference
+                        </h4>
+                        <p className="text-[11px] text-stone-500 mt-1">
+                          Exalted (Uchcha), Debilitated (Neecha) and Own Sign (Swa Rashi)
+                        </p>
+                      </div>
+
+                      <span className="w-fit px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] sm:text-[10px] uppercase tracking-widest text-amber-400 font-semibold">
+                        Reference
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-stone-800">
+                      <table className="w-full min-w-[780px] text-xs">
+                        <thead>
+                          <tr className="border-b border-stone-800 bg-stone-950">
+                            <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                              Planet
+                            </th>
+                            <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                              Exalted (Uchcha)
+                            </th>
+                            <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                              Debilitated (Neecha)
+                            </th>
+                            <th className="text-left px-3 py-3 text-[9px] uppercase tracking-widest text-stone-500">
+                              Own Sign (Swa Rashi)
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {[
+                            ["Sun", "Aries (1)", "Libra (7)", "Leo (5)"],
+                            ["Moon", "Taurus (2)", "Scorpio (8)", "Cancer (4)"],
+                            ["Mars", "Capricorn (10)", "Cancer (4)", "Aries (1), Scorpio (8)"],
+                            ["Mercury", "Virgo (6)", "Pisces (12)", "Gemini (3), Virgo (6)"],
+                            ["Jupiter", "Cancer (4)", "Capricorn (10)", "Sagittarius (9), Pisces (12)"],
+                            ["Venus", "Pisces (12)", "Virgo (6)", "Taurus (2), Libra (7)"],
+                            ["Saturn", "Libra (7)", "Aries (1)", "Capricorn (10), Aquarius (11)"],
+                            ["Rahu", "Taurus (2)", "Scorpio (8)", "—"],
+                            ["Ketu", "Scorpio (8)", "Taurus (2)", "—"],
+                          ].map(([planet, exalted, debilitated, ownSign]) => (
+                            <tr
+                              key={planet}
+                              className="border-b border-stone-800/60 hover:bg-white/[0.025] transition-colors last:border-b-0"
+                            >
+                              <td className="px-3 py-3 text-white font-semibold whitespace-nowrap">
+                                <span className="inline-flex items-center gap-2">
+                                  <span className="text-base text-amber-400 w-5 text-center">
+                                    {PLANET_SYMBOLS[planet] || "•"}
+                                  </span>
+                                  {planet}
+                                  {(planet === "Rahu" || planet === "Ketu") && (
+                                    <span className="text-[9px] text-stone-600">*</span>
+                                  )}
+                                </span>
+                              </td>
+
+                              <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                {exalted}
+                              </td>
+
+                              <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                {debilitated}
+                              </td>
+
+                              <td className="px-3 py-3 text-stone-300 whitespace-nowrap">
+                                {ownSign}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-amber-500/10 bg-amber-500/5 px-3 py-2.5 text-[10px] leading-relaxed text-stone-500">
+                      <span className="text-amber-400 font-semibold">Reference note:</span>{" "}
+                      The Rahu and Ketu entries are shown as the reference values configured for this app.
+                    </div>
+                  </div>
+
                   {/* AGE DASHA */}
 
                   <div className="bg-stone-900/80 border border-stone-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-6">
