@@ -1919,7 +1919,7 @@ doc.text(
     // 1. KUNDLI FIRST
     // ------------------------------------------------------------
     yPosition += 8;
-    yPosition = addPdfSectionTitle(doc, "Kundli", yPosition);
+    yPosition = addPdfSectionTitle(doc, "Lagna Kundli", yPosition);
 
     ensureRoom(150);
     yPosition = drawKundliPDF(doc, result.kundli, yPosition) + 7;
