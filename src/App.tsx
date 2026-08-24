@@ -1866,7 +1866,7 @@ doc.text(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
     doc.setTextColor(184, 134, 11);
-    doc.text("Vimshottari Dasha Report", 105, yPosition, {
+    doc.text("Vedic Vimshottari", 105, yPosition, {
       align: "center",
     });
 
@@ -2211,7 +2211,7 @@ doc.text(
 
     addFooter();
 
-    doc.save(`Vedic_Dasha_${dob}.pdf`);
+    doc.save(`Vedic_vimshottari_${dob}.pdf`);
   };
 
   // ==========================================================
