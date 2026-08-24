@@ -96,6 +96,29 @@ function getPlanetAbbreviation(planet: string): string {
   return PLANET_ABBREVIATIONS[planet] || planet.substring(0, 2);
 }
 
+function getPlanetRetrograde(
+  planetaryPosition: any,
+  planet: any
+): boolean | null {
+  if (typeof planetaryPosition?.retrograde === "boolean") {
+    return planetaryPosition.retrograde;
+  }
+
+  if (typeof planetaryPosition?.isRetrograde === "boolean") {
+    return planetaryPosition.isRetrograde;
+  }
+
+  if (typeof planet?.retrograde === "boolean") {
+    return planet.retrograde;
+  }
+
+  if (typeof planet?.isRetrograde === "boolean") {
+    return planet.isRetrograde;
+  }
+
+  return null;
+}
+
 // ============================================================
 // RASHI NUMBER MAPPING
 // ============================================================
@@ -1688,6 +1711,7 @@ doc.text(
   const drawKundliPDF = (
     doc: jsPDF,
     kundli: KundliData,
+    planetaryPositions: PlanetaryPosition[],
     startY: number
   ) => {
     const x = 35;
@@ -1781,15 +1805,23 @@ doc.text(
         doc.setFontSize(7.5);
         doc.setTextColor(55, 55, 55);
         const retrogradeByPlanet = Object.fromEntries(
-          (kundli.planets || []).map((planet: any) => [
-            planet.planet,
-            Boolean(planet.retrograde),
-          ])
+          (kundli.planets || []).map((planet: any) => {
+            const planetaryPosition = planetaryPositions.find(
+              (item: any) => item.planet === planet.planet
+            );
+
+            return [
+              planet.planet,
+              getPlanetRetrograde(planetaryPosition, planet) === true,
+            ];
+          })
         ) as Record<string, boolean>;
 
         const planetLabels = planets.map((planet: string) =>
-          `${getPlanetAbbreviation(planet)}${retrogradeByPlanet[planet] ? " ℞" : ""}`
-        );
+  retrogradeByPlanet[planet]
+    ? `(${getPlanetAbbreviation(planet)})`
+    : getPlanetAbbreviation(planet)
+);
 
         doc.text(
           planetLabels.join("  "),
@@ -1951,7 +1983,13 @@ doc.text(
     yPosition = addPdfSectionTitle(doc, "Lagna Kundli", yPosition);
 
     ensureRoom(150);
-    yPosition = drawKundliPDF(doc, result.kundli, yPosition) + 7;
+    yPosition =
+      drawKundliPDF(
+        doc,
+        result.kundli,
+        result.planetaryPositions,
+        yPosition
+      ) + 7;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
@@ -1986,9 +2024,7 @@ doc.text(
       const status = getPlanetStatus(planet.planet, planet.sign);
 
       const retrograde =
-        typeof planetaryPosition?.retrograde === "boolean"
-          ? planetaryPosition.retrograde
-          : false;
+        getPlanetRetrograde(planetaryPosition, planet) === true;
 
       return [
         planet.planet,
@@ -3115,19 +3151,10 @@ doc.text(
                                   );
 
                                 const retrogradeValue =
-                                  typeof rawPosition?.retrograde ===
-                                    "boolean"
-                                    ? rawPosition.retrograde
-                                    : typeof rawPosition?.isRetrograde ===
-                                        "boolean"
-                                      ? rawPosition.isRetrograde
-                                      : typeof rawPlanet?.retrograde ===
-                                          "boolean"
-                                        ? rawPlanet.retrograde
-                                        : typeof rawPlanet?.isRetrograde ===
-                                            "boolean"
-                                          ? rawPlanet.isRetrograde
-                                          : null;
+                                  getPlanetRetrograde(
+                                    rawPosition,
+                                    rawPlanet
+                                  );
 
                                 const retro =
                                   retrogradeValue === null
