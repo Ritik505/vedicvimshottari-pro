@@ -3330,7 +3330,7 @@ Thank you!`
                     <RefreshCw className="w-4 h-4" />
                   )}
 
-                  Recalculate Dasha
+                  Refresh Workspace
 
                 </button>
 
@@ -5357,7 +5357,7 @@ Thank you!`
 
                       {loading
                         ? "Calculating..."
-                        : "Calculate Dasha"}
+                        : "Generate Workspace"}
 
                     </button>
 
