@@ -587,6 +587,7 @@ function NorthIndianHouseLabel({
   natalHouseNumber,
   rashiNumber,
   planets,
+  retrogradeByPlanet,
   selected,
   currentLagna,
 }: {
@@ -594,6 +595,7 @@ function NorthIndianHouseLabel({
   natalHouseNumber: number;
   rashiNumber: number | string;
   planets: string[];
+  retrogradeByPlanet: Record<string, boolean>;
   selected: boolean;
   currentLagna: boolean;
 }) {
@@ -627,6 +629,14 @@ function NorthIndianHouseLabel({
               }}
             >
               {getPlanetAbbreviation(planet)}
+              {retrogradeByPlanet[planet] && (
+                <span
+                  className="ml-0.5 text-[9px] sm:text-[11px] font-black"
+                  aria-label="Retrograde"
+                >
+                  ℞
+                </span>
+              )}
             </span>
           ))
         ) : (
@@ -693,6 +703,13 @@ function D1KundliChart({
   const currentLagnaHouse = kundli.houses.find(
     (house) => house.house === startNatalHouse
   );
+
+  const retrogradeByPlanet = Object.fromEntries(
+    kundli.planets.map((planet) => [
+      planet.planet,
+      Boolean(planet.retrograde),
+    ])
+  ) as Record<string, boolean>;
 
   const applySelectedHouseAsLagna = () => {
     if (
@@ -885,6 +902,7 @@ function D1KundliChart({
                     house.sign
                   )}
                   planets={house.planets}
+                  retrogradeByPlanet={retrogradeByPlanet}
                   selected={
                     selectedVisibleHouse ===
                     visibleHouse
@@ -1762,8 +1780,19 @@ doc.text(
       if (planets.length > 0) {
         doc.setFontSize(7.5);
         doc.setTextColor(55, 55, 55);
+        const retrogradeByPlanet = Object.fromEntries(
+          (kundli.planets || []).map((planet: any) => [
+            planet.planet,
+            Boolean(planet.retrograde),
+          ])
+        ) as Record<string, boolean>;
+
+        const planetLabels = planets.map((planet: string) =>
+          `${getPlanetAbbreviation(planet)}${retrogradeByPlanet[planet] ? " ℞" : ""}`
+        );
+
         doc.text(
-          planets.map((planet: string) => getPlanetAbbreviation(planet)).join("  "),
+          planetLabels.join("  "),
           hp.x,
           hp.y + 8,
           { align: "center" }
@@ -1956,6 +1985,11 @@ doc.text(
       const state = getPlanetaryState(degreeInSign, planet.sign);
       const status = getPlanetStatus(planet.planet, planet.sign);
 
+      const retrograde =
+        typeof planetaryPosition?.retrograde === "boolean"
+          ? planetaryPosition.retrograde
+          : false;
+
       return [
         planet.planet,
         planet.sign,
@@ -1963,6 +1997,7 @@ doc.text(
         nakshatra.name,
         nakshatra.lord,
         planet.formattedDegree || `${degreeInSign.toFixed(2)}°`,
+        retrograde ? "Yes" : "No",
         planet.house,
         state,
         status,
@@ -1978,6 +2013,7 @@ doc.text(
         "Nakshatra",
         "Naksh Lord",
         "Degree",
+        "Retro",
         "House",
         "State",
         "Sign Status",

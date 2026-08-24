@@ -123,6 +123,10 @@ export interface PlanetaryPosition {
   // Lahiri sidereal geocentric longitude.
   siderealLongitude: number;
 
+  // Planetary motion. Negative longitude speed = retrograde.
+  longitudeSpeed: number;
+  retrograde: boolean;
+
   // Rashi.
   sign: string;
   signShort: string;
@@ -157,6 +161,10 @@ export interface KundliPlanet {
   signIndex: number;
   degreeInSign: number;
   formattedDegree: string;
+
+  // Planetary motion.
+  longitudeSpeed: number;
+  retrograde: boolean;
 }
 
 export interface KundliHouse {
@@ -415,7 +423,8 @@ function getJulianDay(
 function buildPlanetPosition(
   planet: string,
   siderealLongitude: number,
-  ayanamsa: number
+  ayanamsa: number,
+  longitudeSpeed: number
 ): PlanetaryPosition {
   const sidereal =
     normalizeDegrees(
@@ -445,6 +454,10 @@ function buildPlanetPosition(
 
     siderealLongitude:
       sidereal,
+
+    longitudeSpeed,
+
+    retrograde: longitudeSpeed < 0,
 
     sign:
       rashi.sign,
@@ -600,7 +613,8 @@ export async function calculatePlanetaryPositions(
       buildPlanetPosition(
         name,
         position.longitude,
-        ayanamsa
+        ayanamsa,
+        position.longitudeSpeed
       )
     );
   }
@@ -628,13 +642,15 @@ const rahuPosition =
     SIDEREAL_FLAGS
   );
 
-  positions.push(
-    buildPlanetPosition(
+  positions.push({
+    ...buildPlanetPosition(
       "Rahu",
       rahuPosition.longitude,
-      ayanamsa
-    )
-  );
+      ayanamsa,
+      rahuPosition.longitudeSpeed
+    ),
+    retrograde: true,
+  });
 
   // ==========================================================
   // KETU
@@ -649,13 +665,15 @@ const rahuPosition =
         180
     );
 
-  positions.push(
-    buildPlanetPosition(
+  positions.push({
+    ...buildPlanetPosition(
       "Ketu",
       ketuLongitude,
-      ayanamsa
-    )
-  );
+      ayanamsa,
+      rahuPosition.longitudeSpeed
+    ),
+    retrograde: true,
+  });
 
   return positions;
 }
@@ -773,6 +791,12 @@ export async function calculateKundli(
 
           formattedDegree:
             position.formattedDegree,
+
+          longitudeSpeed:
+            position.longitudeSpeed,
+
+          retrograde:
+            position.retrograde,
         };
       }
     );
