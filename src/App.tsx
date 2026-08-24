@@ -5445,33 +5445,34 @@ Thank you!`
 
                   {/* BRAND */}
 
-                  <div className="flex items-center gap-3 shrink-0">
 
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
 
-                      <Sparkles className="w-4 h-4 text-amber-500" />
+  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
 
-                    </div>
+    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
 
-                    <div className="hidden sm:block">
+  </div>
 
-                      <h1 className="text-sm font-semibold text-white">
+  <div className="min-w-0">
 
-                        Vedic{" "}
+    <h1 className="text-[12px] sm:text-sm font-semibold text-white whitespace-nowrap leading-tight">
 
-                        <span className="text-amber-500">
-                          Vimshottari
-                        </span>
+      Vedic{" "}
 
-                      </h1>
+      <span className="text-amber-500">
+        Vimshottari
+      </span>
 
-                      <p className="text-[9px] uppercase tracking-widest text-stone-600">
-                        Astrology Workspace
-                      </p>
+    </h1>
 
-                    </div>
+    <p className="text-[7px] sm:text-[9px] uppercase tracking-[0.12em] sm:tracking-widest text-stone-600 whitespace-nowrap mt-0.5">
+      Astrology Workspace
+    </p>
 
-                  </div>
+  </div>
+
+</div>
 
                   {/* BUTTONS */}
 
