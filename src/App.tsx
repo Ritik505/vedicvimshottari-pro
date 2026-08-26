@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -2257,21 +2257,13 @@ Thank you!`
             boolean
           >;
 
-        const planetLabels =
-          planets.map(
-            (
-              planet: string
-            ) =>
-              retrogradeByPlanet[
-                planet
-              ]
-                ? `${getPlanetAbbreviation(
-                    planet
-                  )} ℞`
-                : getPlanetAbbreviation(
-                    planet
-                  )
-          );
+          const planetLabels =
+  planets.map(
+    (planet: string) =>
+      retrogradeByPlanet[planet]
+        ? `(${getPlanetAbbreviation(planet)})`
+        : getPlanetAbbreviation(planet)
+  );
 
         doc.text(
           planetLabels.join(
@@ -2658,9 +2650,9 @@ Thank you!`
               `${degreeInSign.toFixed(
                 2
               )}°`,
-            retrograde
-              ? "℞"
-              : "—",
+              retrograde
+               ? "Yes"
+               : "No",
             planet.house,
             state,
             status,
