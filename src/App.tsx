@@ -5348,7 +5348,7 @@ Thank you!`
                       )}
 
                       {loading
-                        ? "Calculating..."
+                        ? "Generating Workspace..."
                         : "Generate Workspace"}
 
                     </button>
