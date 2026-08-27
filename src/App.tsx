@@ -35,6 +35,7 @@ import {
   generateDashaHierarchy,
   calculatePlanetaryPositions,
   calculateKundli,
+  calculateNavamsa,
   calculateCharaKarakas,
   type PlanetaryPosition,
   type CharaKaraka,
@@ -698,15 +699,31 @@ function NorthIndianHouseLabel({
 // D1 KUNDLI CHART
 // ============================================================
 
-function D1KundliChart({
-  kundli,
+function KundliChart({
+  d1Kundli,
+  d9Kundli,
+  defaultChartCode = "D1",
   onLagnaHouseChange,
 }: {
-  kundli: KundliData;
+  d1Kundli: KundliData;
+  d9Kundli: KundliData;
+  defaultChartCode?: "D1" | "D9";
   onLagnaHouseChange?: (
+    chartCode: "D1" | "D9",
     natalHouse: number
   ) => void;
 }) {
+  const [chartCode, setChartCode] =
+    useState<"D1" | "D9">(defaultChartCode);
+
+  const [chartMenuOpen, setChartMenuOpen] =
+    useState(false);
+
+  const kundli =
+    chartCode === "D9"
+      ? d9Kundli
+      : d1Kundli;
+
   const [startNatalHouse, setStartNatalHouse] =
     useState(1);
 
@@ -762,6 +779,7 @@ function D1KundliChart({
       );
 
       onLagnaHouseChange?.(
+        chartCode,
         selectedNatalHouse
       );
 
@@ -770,12 +788,94 @@ function D1KundliChart({
 
   const restoreOriginalLagna = () => {
     setStartNatalHouse(1);
-    onLagnaHouseChange?.(1);
+    onLagnaHouseChange?.(
+      chartCode,
+      1
+    );
     setSelectedVisibleHouse(null);
   };
 
+  const handleChartChange = (
+    nextChartCode: "D1" | "D9"
+  ) => {
+    setChartCode(nextChartCode);
+    setStartNatalHouse(1);
+    setSelectedVisibleHouse(null);
+    setChartMenuOpen(false);
+    onLagnaHouseChange?.(
+      nextChartCode,
+      1
+    );
+  };
+
+  const isD9 =
+    chartCode === "D9";
+
   return (
     <div className="space-y-4">
+
+      <div className="flex justify-end">
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() =>
+              setChartMenuOpen((open) => !open)
+            }
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-400 hover:bg-amber-500/15 transition-colors"
+            aria-haspopup="menu"
+            aria-expanded={chartMenuOpen}
+            aria-label="Select divisional chart"
+          >
+            {isD9 ? "D9 Navamsa" : "D1 Rashi"}
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 transition-transform",
+                chartMenuOpen && "rotate-180"
+              )}
+            />
+          </button>
+
+          {chartMenuOpen && (
+            <div
+              className="absolute right-0 top-full z-50 mt-2 min-w-[150px] overflow-hidden rounded-xl border border-[#C8B18D] bg-[#FFF9EF] p-1 shadow-[0_12px_30px_rgba(78,51,26,0.18)]"
+              role="menu"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() =>
+                  handleChartChange("D1")
+                }
+                className={cn(
+                  "w-full rounded-lg px-3 py-2.5 text-left text-xs font-extrabold transition-colors",
+                  chartCode === "D1"
+                    ? "bg-[#8B2F2F]/10 text-[#8B2F2F]"
+                    : "text-[#542F28] hover:bg-[#F2E5CF]"
+                )}
+              >
+                D1 Rashi
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() =>
+                  handleChartChange("D9")
+                }
+                className={cn(
+                  "w-full rounded-lg px-3 py-2.5 text-left text-xs font-extrabold transition-colors",
+                  chartCode === "D9"
+                    ? "bg-[#8B2F2F]/10 text-[#8B2F2F]"
+                    : "text-[#542F28] hover:bg-[#F2E5CF]"
+                )}
+              >
+                D9 Navamsa
+              </button>
+            </div>
+          )}
+        </div>
+
+      </div>
 
       <div className="relative w-full max-w-[620px] mx-auto">
 
@@ -785,7 +885,11 @@ function D1KundliChart({
             viewBox="0 0 100 100"
             className="absolute inset-0 h-full w-full"
             role="img"
-            aria-label="Traditional North Indian style D1 Rashi chart"
+            aria-label={
+              isD9
+                ? "Traditional North Indian style D9 Navamsa chart"
+                : "Traditional North Indian style D1 Rashi chart"
+            }
           >
             <rect
               x="0"
@@ -978,7 +1082,9 @@ function D1KundliChart({
             <div className="text-[8px] sm:text-[9px] uppercase tracking-[0.18em] font-bold text-[#765535]">
               {derivedView
                 ? "Derived Lagna"
-                : "Lagna"}
+                : isD9
+                  ? "D9 Lagna"
+                  : "Lagna"}
             </div>
 
             <div className="text-lg sm:text-2xl font-extrabold text-[#8B2F2F]">
@@ -1010,13 +1116,11 @@ function D1KundliChart({
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
 
               <div>
-
                 <p className="text-[10px] uppercase tracking-[0.16em] font-bold text-[#765535]">
                   House Selected
                 </p>
 
                 <p className="mt-1 text-sm sm:text-base font-extrabold text-[#542F28]">
-
                   House{" "}
                   {selectedVisibleHouse}
                   {" · Rashi "}
@@ -1033,9 +1137,7 @@ function D1KundliChart({
                       {selectedNatalHouse}
                     </span>
                   )}
-
                 </p>
-
               </div>
 
               <p className="text-[11px] text-[#7D6A54]">
@@ -1063,7 +1165,7 @@ function D1KundliChart({
               >
                 {selectedVisibleHouse === 1
                   ? "House 1 is already the Lagna"
-                  : `Start Kundli from House ${selectedVisibleHouse}`}
+                  : `Start ${isD9 ? "D9" : "Kundli"} from House ${selectedVisibleHouse}`}
               </button>
 
               {derivedView && (
@@ -1074,7 +1176,7 @@ function D1KundliChart({
                   }
                   className="rounded-xl border border-[#8B2F2F]/40 bg-[#FFF9EF] px-4 py-3 text-sm font-extrabold text-[#7A302D] hover:bg-white transition-all"
                 >
-                  Back to Original Lagna Kundli
+                  Back to Original Lagna
                 </button>
               )}
 
@@ -1087,15 +1189,9 @@ function D1KundliChart({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
             <div>
-
-              <p className="text-[10px] uppercase tracking-[0.16em] font-bold text-[#765535]">
-                Interactive Kundli
-              </p>
-
-              <p className="mt-1 text-sm text-[#66513B]">
+              <p className="text-sm text-[#66513B]">
                 Click anywhere inside a house to select it.
               </p>
-
             </div>
 
             {derivedView && (
@@ -1106,7 +1202,7 @@ function D1KundliChart({
                 }
                 className="rounded-xl border border-[#8B2F2F]/40 bg-[#FFF9EF] px-4 py-2.5 text-sm font-extrabold text-[#7A302D] hover:bg-white transition-all"
               >
-                Back to Original Lagna Kundli
+                Back to Original Lagna
               </button>
             )}
 
@@ -1372,6 +1468,7 @@ export default function App() {
       planetaryPositions: PlanetaryPosition[];
       charaKarakas: CharaKaraka[];
       kundli: KundliData;
+      d9Kundli: KundliData;
     } | null>(null);
 
   const [error, setError] =
@@ -1614,12 +1711,24 @@ Thank you!`
           selectedNodeType
         );
 
+      const d9Kundli =
+        await calculateNavamsa(
+          dob,
+          tob,
+          timezone,
+          Number(latitude),
+          Number(longitude),
+          selectedNodeType,
+          planetaryPositions
+        );
+
       setResult({
         info: dashaInfo,
         dashas: hierarchy,
         planetaryPositions,
         charaKarakas,
         kundli,
+        d9Kundli,
       });
 
       setActivePanel("details");
@@ -2582,7 +2691,51 @@ Thank you!`
     );
 
     // ------------------------------------------------------------
-    // 2. PLANETARY PLACEMENT
+    // 2. NAVAMSA / D9 KUNDLI
+    // ------------------------------------------------------------
+
+    yPosition += 10;
+
+    ensureRoom(150);
+
+    yPosition =
+      addPdfSectionTitle(
+        doc,
+        "Navamsa Kundli (D9)",
+        yPosition
+      );
+
+    yPosition =
+      drawKundliPDF(
+        doc,
+        result.d9Kundli,
+        result.planetaryPositions,
+        yPosition
+      ) + 7;
+
+    doc.setFont(
+      "helvetica",
+      "normal"
+    );
+
+    doc.setFontSize(8);
+
+    doc.setTextColor(90);
+
+    doc.text(
+      `D9 Lagna: Rashi ${getRashiNumber(
+        result.d9Kundli
+          .ascendantSign
+      )} · ${result.d9Kundli.ascendantFormattedDegree}`,
+      105,
+      yPosition,
+      {
+        align: "center",
+      }
+    );
+
+    // ------------------------------------------------------------
+    // 3. PLANETARY PLACEMENT
     // ------------------------------------------------------------
 
     yPosition += 11;
@@ -3457,108 +3610,86 @@ Thank you!`
     if (panel === "kundli") {
 
       return (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto space-y-6">
 
           <div className="bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden">
 
             <div className="p-5 sm:p-7 border-b border-stone-800">
 
-              <div className="flex items-center justify-between gap-4">
-
-                <div>
-
-                  <div className="flex items-center gap-2">
-
-                    <Sparkles className="w-5 h-5 text-amber-500" />
-
-                    <h2 className="text-lg font-semibold text-white">
-                      Lagna Kundli
-                    </h2>
-
-                  </div>
-
-                  <p className="text-xs text-stone-500 mt-1">
-                    D1 Rashi Chart · Lahiri Sidereal · Whole Sign
-                  </p>
-
-                </div>
-
-                <span className="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] uppercase tracking-widest text-amber-400 font-semibold">
-                  D1 Rashi
-                </span>
-
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500" />
+                <h2 className="text-lg font-semibold text-white">
+                  Lagna Kundli
+                </h2>
               </div>
+
+              <p className="text-xs text-stone-500 mt-1">
+                D1 Rashi / D9 Navamsa · Lahiri Sidereal · Whole Sign
+              </p>
 
             </div>
 
             <div className="p-4 sm:p-7">
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+              {/* BIRTH / LAGNA SUMMARY */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
 
                 <div className="bg-stone-950 border border-stone-800 rounded-2xl p-4">
-
                   <p className="text-[9px] uppercase tracking-widest text-stone-600">
                     Lagna / Ascendant
                   </p>
 
                   <div className="flex items-baseline gap-2 mt-1">
-
                     <span className="text-xl font-semibold text-white">
-                      Rashi{" "}
-                      {getRashiNumber(
-                        result!.kundli
-                          .ascendantSign
-                      )}
+                      Rashi {getRashiNumber(result!.kundli.ascendantSign)}
                     </span>
 
                     <span className="font-mono text-amber-400">
-                      {result!.kundli
-                        .ascendantFormattedDegree}
+                      {result!.kundli.ascendantFormattedDegree}
                     </span>
-
                   </div>
-
                 </div>
 
                 <div className="bg-stone-950 border border-stone-800 rounded-2xl p-4">
-
                   <p className="text-[9px] uppercase tracking-widest text-stone-600">
                     Birth Coordinates
                   </p>
 
                   <p className="font-mono text-sm text-stone-300 mt-2">
-
-                    {Number(
-                      latitude
-                    ).toFixed(4)}
-                    °,
-                    {" "}
-                    {Number(
-                      longitude
-                    ).toFixed(4)}
-                    °
-
+                    {Number(latitude).toFixed(4)}°, {" "}
+                    {Number(longitude).toFixed(4)}°
                   </p>
-
                 </div>
 
               </div>
 
-              <div className="bg-stone-950 border border-stone-800 rounded-2xl p-2 sm:p-5 overflow-hidden">
-
-                <D1KundliChart
-                  kundli={
-                    result!.kundli
-                  }
-                  onLagnaHouseChange={
-                    setActiveLagnaNatalHouse
-                  }
+              {/* D1 CHART */}
+              <div className="bg-stone-950 border border-stone-800 rounded-2xl p-2 sm:p-5 overflow-visible">
+                <KundliChart
+                  d1Kundli={result!.kundli}
+                  d9Kundli={result!.d9Kundli}
+                  defaultChartCode="D1"
+                  onLagnaHouseChange={(chartCode, natalHouse) => {
+                    if (chartCode === "D1") {
+                      setActiveLagnaNatalHouse(natalHouse);
+                    }
+                  }}
                 />
+              </div>
 
+              {/* D9 CHART */}
+              <div className="mt-8 bg-stone-950 border border-stone-800 rounded-2xl p-2 sm:p-5 overflow-visible">
+                <KundliChart
+                  d1Kundli={result!.kundli}
+                  d9Kundli={result!.d9Kundli}
+                  defaultChartCode="D9"
+                  onLagnaHouseChange={() => {
+                    // D9 keeps its own Start-from-house state inside KundliChart.
+                  }}
+                />
               </div>
 
             </div>
-
           </div>
 
         </div>

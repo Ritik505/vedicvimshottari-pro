@@ -7,6 +7,7 @@ import {
   CalculationFlag,
   HouseSystem,
 } from "@swisseph/browser";
+
 export type LunarNodeType = "mean" | "true";
 
 // ============================================================
@@ -24,6 +25,10 @@ const DASHA_ORDER = [
   { planet: "Saturn", years: 19 },
   { planet: "Mercury", years: 17 },
 ];
+
+// ============================================================
+// NAKSHATRAS
+// ============================================================
 
 const NAKSHATRA_NAMES = [
   "Ashwini",
@@ -123,7 +128,7 @@ export interface PlanetaryPosition {
   // Lahiri sidereal geocentric longitude.
   siderealLongitude: number;
 
-  // Planetary motion. Negative longitude speed = retrograde.
+  // Planetary motion.
   longitudeSpeed: number;
   retrograde: boolean;
 
@@ -184,18 +189,15 @@ export interface KundliData {
   ascendantFormattedDegree: string;
   houses: KundliHouse[];
   planets: KundliPlanet[];
+
+  // Identifies the divisional chart.
+  // D1 = Rashi, D9 = Navamsa.
+  chartCode?: "D1" | "D9";
+  chartName?: string;
 }
 
 // ============================================================
 // SWISS EPHEMERIS SINGLETON
-// ============================================================
-//
-// The browser implementation is WASM-based and must be initialized
-// asynchronously.
-//
-// We initialize it once and reuse the same instance for every
-// calculation.
-//
 // ============================================================
 
 const swe = new SwissEphemeris();
@@ -209,9 +211,6 @@ async function getSwissEphemeris(): Promise<SwissEphemeris> {
 
       /*
        * Load the standard Swiss Ephemeris files.
-       *
-       * This gives us the Swiss Ephemeris calculation path rather
-       * than only the built-in Moshier fallback.
        */
       await swe.loadStandardEphemeris();
 
@@ -398,9 +397,6 @@ function getJulianDay(
   const sweDate =
     utc.toJSDate();
 
-  /*
-   * Julian day from the exact UTC instant.
-   */
   const tempSwe =
     swe;
 
@@ -457,7 +453,8 @@ function buildPlanetPosition(
 
     longitudeSpeed,
 
-    retrograde: longitudeSpeed < 0,
+    retrograde:
+      longitudeSpeed < 0,
 
     sign:
       rashi.sign,
@@ -535,25 +532,6 @@ const SIDEREAL_FLAGS =
 // ============================================================
 // PLANETARY POSITIONS
 // ============================================================
-//
-// ONE astronomical engine:
-//
-// Swiss Ephemeris
-//   ↓
-// geocentric calculation
-//   ↓
-// Lahiri sidereal mode
-//   ↓
-// sidereal longitude
-//
-// This same function is used by:
-//
-// - Planetary Degrees
-// - Chara Karaka
-//
-// Moon used here is the SAME Swiss Ephemeris Moon used by Dasha.
-//
-// ============================================================
 
 export async function calculatePlanetaryPositions(
   dateStr: string,
@@ -620,27 +598,20 @@ export async function calculatePlanetaryPositions(
   }
 
   // ==========================================================
-  // RAHU - MEAN NODE
+  // RAHU
   // ==========================================================
 
-  /*
-   * Mean Node is the traditional default used here.
-   *
-   * We deliberately do NOT calculate Rahu using a homemade
-   * polynomial. Swiss Ephemeris calculates the node.
-   */
-
   const rahuPoint =
-  nodeType === "true"
-    ? LunarPoint.TrueNode
-    : LunarPoint.MeanNode;
+    nodeType === "true"
+      ? LunarPoint.TrueNode
+      : LunarPoint.MeanNode;
 
-const rahuPosition =
-  engine.calculatePosition(
-    jd,
-    rahuPoint,
-    SIDEREAL_FLAGS
-  );
+  const rahuPosition =
+    engine.calculatePosition(
+      jd,
+      rahuPoint,
+      SIDEREAL_FLAGS
+    );
 
   positions.push({
     ...buildPlanetPosition(
@@ -649,6 +620,11 @@ const rahuPosition =
       ayanamsa,
       rahuPosition.longitudeSpeed
     ),
+
+    /*
+     * Rahu is conventionally shown as retrograde in this app,
+     * regardless of the instantaneous node speed returned.
+     */
     retrograde: true,
   });
 
@@ -672,6 +648,7 @@ const rahuPosition =
       ayanamsa,
       rahuPosition.longitudeSpeed
     ),
+
     retrograde: true,
   });
 
@@ -682,19 +659,14 @@ const rahuPosition =
 // LAGNA KUNDLI / D1 RASHI CHART
 // ============================================================
 //
-// Uses the same Swiss Ephemeris instance and the same Lahiri
-// sidereal planetary positions as the rest of the application.
+// Uses the same Swiss Ephemeris instance and Lahiri sidereal
+// calculations as the rest of the application.
 //
 // House model:
 // - Whole Sign houses
 // - House 1 = Ascendant sign
 // - Each following house advances one Rashi
 //
-// Swiss Ephemeris returns the Ascendant in tropical longitude
-// from calculateHouses(), so we convert that Ascendant to Lahiri
-// sidereal longitude using the exact ayanamsa for the birth JD.
-//
-// This is a D1/Rashi chart representation, not a Bhava Chalit chart.
 // ============================================================
 
 export async function calculateKundli(
@@ -705,30 +677,48 @@ export async function calculateKundli(
   longitude: number,
   nodeType: LunarNodeType = "true"
 ): Promise<KundliData> {
-  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-    throw new Error("Invalid latitude. Latitude must be between -90 and 90.");
+  if (
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90
+  ) {
+    throw new Error(
+      "Invalid latitude. Latitude must be between -90 and 90."
+    );
   }
 
-  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-    throw new Error("Invalid longitude. Longitude must be between -180 and 180.");
+  if (
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new Error(
+      "Invalid longitude. Longitude must be between -180 and 180."
+    );
   }
 
-  const engine = await getSwissEphemeris();
+  const engine =
+    await getSwissEphemeris();
 
-  const { jd } = getJulianDay(
-    dateStr,
-    timeStr,
-    timezone
-  );
+  const { jd } =
+    getJulianDay(
+      dateStr,
+      timeStr,
+      timezone
+    );
 
   engine.setSiderealMode(
     SiderealMode.Lahiri
   );
 
   const ayanamsa =
-    engine.getAyanamsa(jd);
+    engine.getAyanamsa(
+      jd
+    );
 
-  // calculateHouses() returns the geometric/tropical Ascendant.
+  /*
+   * calculateHouses() returns the geometric/tropical Ascendant.
+   */
   const houses =
     engine.calculateHouses(
       jd,
@@ -748,8 +738,10 @@ export async function calculateKundli(
       ascendantSidereal
     );
 
-  // Reuse the same geocentric sidereal planetary calculation
-  // already used by Planetary Degrees and Chara Karakas.
+  /*
+   * Reuse the same geocentric sidereal planetary calculation
+   * already used by Planetary Degrees and Chara Karakas.
+   */
   const planetaryPositions =
     await calculatePlanetaryPositions(
       dateStr,
@@ -762,14 +754,18 @@ export async function calculateKundli(
     KundliPlanet[] =
     planetaryPositions.map(
       (position) => {
-        // Whole-sign house:
-        // Ascendant sign = House 1.
+        /*
+         * Whole-sign house:
+         * Ascendant sign = House 1.
+         */
         const house =
           (
             position.signIndex -
-            ascendant.signIndex +
+              ascendant.signIndex +
             12
-          ) % 12 + 1;
+          ) %
+            12 +
+          1;
 
         return {
           planet:
@@ -806,6 +802,7 @@ export async function calculateKundli(
     Array.from(
       { length: 12 },
       (_, index) => {
+
         const houseNumber =
           index + 1;
 
@@ -847,6 +844,9 @@ export async function calculateKundli(
     );
 
   return {
+    chartCode: "D1",
+    chartName: "Rashi",
+
     ascendantLongitude:
       ascendantSidereal,
 
@@ -874,75 +874,621 @@ export async function calculateKundli(
 }
 
 // ============================================================
-// CHARA KARAKA
+// NAVAMSA / D9 HELPERS
 // ============================================================
 //
-// 7-Karaka scheme:
+// Standard Navamsa sign progression:
 //
-// Highest degree within sign -> Atmakaraka
-// 2nd highest                -> Amatyakaraka
-// 3rd                       -> Bhratrikaraka
-// 4th                       -> Matrikaraka
-// 5th                       -> Putrakaraka
-// 6th                       -> Gnatikaraka
-// Lowest                    -> Darakaraka
+// Movable signs:
+// Aries, Cancer, Libra, Capricorn
+// → start from the same sign.
 //
-// Rahu/Ketu are displayed but excluded from the 7-karaka
-// ranking.
+// Fixed signs:
+// Taurus, Leo, Scorpio, Aquarius
+// → start from the 9th sign from the sign.
+//
+// Dual signs:
+// Gemini, Virgo, Sagittarius, Pisces
+// → start from the 5th sign from the sign.
+//
+// Every Rashi has 9 Navamsas.
+// Each Navamsa = 3°20' = 3 + 1/3 degrees.
 //
 // ============================================================
 
+const NAVAMSA_SIZE =
+  30 / 9;
+
+function getNavamsaStartSignIndex(
+  rashiIndex: number
+): number {
+  /*
+   * Movable: Aries, Cancer, Libra, Capricorn
+   */
+  const movableSigns = [
+    0, // Aries
+    3, // Cancer
+    6, // Libra
+    9, // Capricorn
+  ];
+
+  /*
+   * Fixed: Taurus, Leo, Scorpio, Aquarius
+   */
+  const fixedSigns = [
+    1, // Taurus
+    4, // Leo
+    7, // Scorpio
+    10, // Aquarius
+  ];
+
+  /*
+   * Dual: Gemini, Virgo, Sagittarius, Pisces
+   */
+  const dualSigns = [
+    2, // Gemini
+    5, // Virgo
+    8, // Sagittarius
+    11, // Pisces
+  ];
+
+  if (
+    movableSigns.includes(
+      rashiIndex
+    )
+  ) {
+    return rashiIndex;
+  }
+
+  if (
+    fixedSigns.includes(
+      rashiIndex
+    )
+  ) {
+    return (
+      rashiIndex + 8
+    ) % 12;
+  }
+
+  if (
+    dualSigns.includes(
+      rashiIndex
+    )
+  ) {
+    return (
+      rashiIndex + 4
+    ) % 12;
+  }
+
+  return rashiIndex;
+}
+
+function getNavamsaFromLongitude(
+  siderealLongitude: number
+) {
+  const normalized =
+    normalizeDegrees(
+      siderealLongitude
+    );
+
+  const rashiIndex =
+    Math.floor(
+      normalized / 30
+    );
+
+  const degreeInRashi =
+    normalized -
+    rashiIndex * 30;
+
+  /*
+   * Which of the 9 Navamsas inside the Rashi?
+   *
+   * 0 through 8.
+   */
+  let navamsaIndexInRashi =
+    Math.floor(
+      degreeInRashi /
+        NAVAMSA_SIZE
+    );
+
+  /*
+   * Protect against floating point edge cases.
+   */
+  navamsaIndexInRashi =
+    Math.max(
+      0,
+      Math.min(
+        8,
+        navamsaIndexInRashi
+      )
+    );
+
+  const startingSign =
+    getNavamsaStartSignIndex(
+      rashiIndex
+    );
+
+  const navamsaSignIndex =
+    (
+      startingSign +
+      navamsaIndexInRashi
+    ) % 12;
+
+  /*
+   * Degree inside the particular Navamsa.
+   *
+   * Example:
+   * 0°00'–3°20' of the Rashi
+   * corresponds to 0°00'–30°00' of its D9 sign.
+   */
+  const degreeInsideNavamsa =
+    degreeInRashi -
+    navamsaIndexInRashi *
+      NAVAMSA_SIZE;
+
+  const navamsaDegreeInSign =
+    degreeInsideNavamsa *
+    9;
+
+  const formatted =
+    formatDegree(
+      navamsaDegreeInSign
+    );
+
+  return {
+    rashiIndex,
+
+    degreeInRashi,
+
+    navamsaIndexInRashi,
+
+    navamsaSignIndex,
+
+    sign:
+      RASHI_NAMES[
+        navamsaSignIndex
+      ],
+
+    signShort:
+      RASHI_SHORT_NAMES[
+        navamsaSignIndex
+      ],
+
+    degreeInNavamsaSign:
+      navamsaDegreeInSign,
+
+    degrees:
+      formatted.degrees,
+
+    minutes:
+      formatted.minutes,
+
+    seconds:
+      formatted.seconds,
+
+    formattedDegree:
+      formatted.formattedDegree,
+  };
+}
+
+// ============================================================
+// BUILD WHOLE-SIGN DIVISIONAL CHART
+// ============================================================
+//
+// This generic builder is used for D9 today and can later be
+// reused for D2, D3, D10, D12, D16, D20, D24, D27, D30, D40,
+// D45, D60, etc.
+//
+// ============================================================
+
+function buildDivisionalChart(
+  chartCode: "D9",
+  chartName: string,
+  ascendantSiderealLongitude: number,
+  planetaryPositions: PlanetaryPosition[]
+): KundliData {
+  const ascendant =
+    getNavamsaFromLongitude(
+      ascendantSiderealLongitude
+    );
+
+  const divisionalPlanets:
+    KundliPlanet[] =
+    planetaryPositions.map(
+      (position) => {
+
+        const navamsa =
+          getNavamsaFromLongitude(
+            position.siderealLongitude
+          );
+
+        /*
+         * Whole-sign house in the divisional chart:
+         *
+         * D9 Ascendant sign = House 1.
+         */
+        const house =
+          (
+            navamsa.navamsaSignIndex -
+              ascendant.navamsaSignIndex +
+            12
+          ) %
+            12 +
+          1;
+
+        return {
+          planet:
+            position.planet,
+
+          house,
+
+          sign:
+            navamsa.sign,
+
+          signShort:
+            navamsa.signShort,
+
+          signIndex:
+            navamsa.navamsaSignIndex,
+
+          degreeInSign:
+            navamsa.degreeInNavamsaSign,
+
+          formattedDegree:
+            navamsa.formattedDegree,
+
+          /*
+           * Keep the source planet's movement.
+           */
+          longitudeSpeed:
+            position.longitudeSpeed,
+
+          retrograde:
+            position.retrograde,
+        };
+      }
+    );
+
+  const divisionalHouses:
+    KundliHouse[] =
+    Array.from(
+      { length: 12 },
+      (_, index) => {
+
+        const houseNumber =
+          index + 1;
+
+        const signIndex =
+          (
+            ascendant.navamsaSignIndex +
+            index
+          ) % 12;
+
+        return {
+          house:
+            houseNumber,
+
+          sign:
+            RASHI_NAMES[
+              signIndex
+            ],
+
+          signShort:
+            RASHI_SHORT_NAMES[
+              signIndex
+            ],
+
+          signIndex,
+
+          planets:
+            divisionalPlanets
+              .filter(
+                (planet) =>
+                  planet.house ===
+                  houseNumber
+              )
+              .map(
+                (planet) =>
+                  planet.planet
+              ),
+        };
+      }
+    );
+
+  return {
+    chartCode,
+
+    chartName,
+
+    ascendantLongitude:
+      ascendantSiderealLongitude,
+
+    ascendantSignIndex:
+      ascendant.navamsaSignIndex,
+
+    ascendantSign:
+      ascendant.sign,
+
+    ascendantSignShort:
+      ascendant.signShort,
+
+    ascendantDegree:
+      ascendant.degreeInNavamsaSign,
+
+    ascendantFormattedDegree:
+      ascendant.formattedDegree,
+
+    houses:
+      divisionalHouses,
+
+    planets:
+      divisionalPlanets,
+  };
+}
+
+// ============================================================
+// NAVAMSA / D9 KUNDLI
+// ============================================================
+//
+// Uses the exact same birth data and the same Swiss Ephemeris
+// Lahiri sidereal positions as D1.
+//
+// D9 is NOT calculated from tropical positions.
+//
+// The following are calculated:
+//
+// 1. Sidereal Ascendant
+// 2. Navamsa Ascendant
+// 3. Navamsa sign for every planet
+// 4. Whole-sign D9 houses
+// 5. Planetary degrees inside D9 sign
+// 6. Retrograde status
+//
+// ============================================================
+
+export async function calculateNavamsa(
+  dateStr: string,
+  timeStr: string,
+  timezone: string,
+  latitude: number,
+  longitude: number,
+  nodeType: LunarNodeType = "true",
+  existingPlanetaryPositions?: PlanetaryPosition[]
+): Promise<KundliData> {
+  if (
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90
+  ) {
+    throw new Error(
+      "Invalid latitude. Latitude must be between -90 and 90."
+    );
+  }
+
+  if (
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new Error(
+      "Invalid longitude. Longitude must be between -180 and 180."
+    );
+  }
+
+  const engine =
+    await getSwissEphemeris();
+
+  const { jd } =
+    getJulianDay(
+      dateStr,
+      timeStr,
+      timezone
+    );
+
+  engine.setSiderealMode(
+    SiderealMode.Lahiri
+  );
+
+  const ayanamsa =
+    engine.getAyanamsa(
+      jd
+    );
+
+  // ==========================================================
+  // D1 TROPICAL ASCENDANT
+  // ==========================================================
+
+  const houses =
+    engine.calculateHouses(
+      jd,
+      latitude,
+      longitude,
+      HouseSystem.WholeSign
+    );
+
+  /*
+   * Convert tropical Ascendant to Lahiri sidereal Ascendant.
+   */
+  const ascendantSidereal =
+    normalizeDegrees(
+      houses.ascendant -
+        ayanamsa
+    );
+
+  // ==========================================================
+  // PLANETS
+  // ==========================================================
+
+  /*
+   * Reuse the already calculated positions when available.
+   * This prevents a second Swiss Ephemeris planetary pass
+   * during the normal workspace generation.
+   */
+  const planetaryPositions =
+    existingPlanetaryPositions ??
+    (await calculatePlanetaryPositions(
+      dateStr,
+      timeStr,
+      timezone,
+      nodeType
+    ));
+
+  // ==========================================================
+  // BUILD D9
+  // ==========================================================
+
+  return buildDivisionalChart(
+    "D9",
+    "Navamsa",
+    ascendantSidereal,
+    planetaryPositions
+  );
+}
+
+// ============================================================
+// GENERIC NAVAMSA SIGN HELPER
+// ============================================================
+//
+// Useful when a component needs only the D9 sign of a planet
+// or longitude without building the entire D9 chart.
+//
+// ============================================================
+
+export function getNavamsaPosition(
+  siderealLongitude: number
+) {
+  const navamsa =
+    getNavamsaFromLongitude(
+      siderealLongitude
+    );
+
+  return {
+    sign:
+      navamsa.sign,
+
+    signShort:
+      navamsa.signShort,
+
+    signIndex:
+      navamsa.navamsaSignIndex,
+
+    degreeInSign:
+      navamsa.degreeInNavamsaSign,
+
+    formattedDegree:
+      navamsa.formattedDegree,
+
+    navamsaNumber:
+      navamsa.navamsaIndexInRashi + 1,
+  };
+}
+
+// ============================================================
+// CHARA KARAKA
+// ============================================================
+//
+// 8-Karaka scheme:
+// Highest degree within sign -> Atmakaraka
+// 2nd highest                -> Amatyakaraka
+// 3rd                        -> Bhratrikaraka
+// 4th                        -> Matrikaraka
+// 5th                        -> Pitrikaraka
+// 6th                        -> Putrakaraka
+// 7th                        -> Gnatikaraka
+// Lowest                     -> Darakaraka
+//
+// Rahu uses reverse degree.
+// Ketu is excluded.
+//
+// ============================================================
 
 export function calculateCharaKarakas(
   positions: PlanetaryPosition[]
 ): CharaKaraka[] {
-  const candidates = positions.filter(
-    (position) =>
-      [
-        "Sun",
-        "Moon",
-        "Mars",
-        "Mercury",
-        "Jupiter",
-        "Venus",
-        "Saturn",
-        "Rahu",
-      ].includes(position.planet)
-  );
 
-  const ranked = candidates.map((position) => {
-    const effectiveDegree =
-      position.planet === "Rahu"
-        ? 30 - position.degreeInSign
-        : position.degreeInSign;
+  const candidates =
+    positions.filter(
+      (position) =>
+        [
+          "Sun",
+          "Moon",
+          "Mars",
+          "Mercury",
+          "Jupiter",
+          "Venus",
+          "Saturn",
+          "Rahu",
+        ].includes(
+          position.planet
+        )
+    );
 
-    return {
-      position,
-      effectiveDegree,
-    };
-  });
+  const ranked =
+    candidates.map(
+      (position) => {
+
+        const effectiveDegree =
+          position.planet ===
+          "Rahu"
+            ? 30 -
+              position.degreeInSign
+            : position.degreeInSign;
+
+        return {
+          position,
+          effectiveDegree,
+        };
+      }
+    );
 
   ranked.sort(
     (a, b) =>
-      b.effectiveDegree - a.effectiveDegree
+      b.effectiveDegree -
+      a.effectiveDegree
   );
 
-  return ranked.map((item, index) => {
-    const effectiveFormatted = formatDegree(
-      item.effectiveDegree
-    );
+  return ranked.map(
+    (
+      item,
+      index
+    ) => {
 
-    return {
-      planet: item.position.planet,
-      karaka: CHARA_KARAKA_NAMES_8[index],
-      degreeInSign: item.position.degreeInSign,
-      effectiveDegree: item.effectiveDegree,
-      formattedDegree: item.position.formattedDegree,
-      formattedEffectiveDegree:
-        effectiveFormatted.formattedDegree,
-      sign: item.position.sign,
-    };
-  });
+      const effectiveFormatted =
+        formatDegree(
+          item.effectiveDegree
+        );
+
+      return {
+        planet:
+          item.position
+            .planet,
+
+        karaka:
+          CHARA_KARAKA_NAMES_8[
+            index
+          ],
+
+        degreeInSign:
+          item.position
+            .degreeInSign,
+
+        effectiveDegree:
+          item.effectiveDegree,
+
+        formattedDegree:
+          item.position
+            .formattedDegree,
+
+        formattedEffectiveDegree:
+          effectiveFormatted
+            .formattedDegree,
+
+        sign:
+          item.position
+            .sign,
+      };
+    }
+  );
 }
 
 // ============================================================
@@ -951,8 +1497,6 @@ export function calculateCharaKarakas(
 //
 // Uses the SAME Swiss Ephemeris sidereal Moon longitude
 // used by calculatePlanetaryPositions().
-//
-// Therefore there are no separate Moon calculations.
 //
 // ============================================================
 
@@ -1091,6 +1635,7 @@ export async function calculateDasha(
 function formatJD(
   jd: number
 ): string {
+
   /*
    * Unix epoch:
    *
@@ -1125,6 +1670,7 @@ function generateSubDashas(
   orderStartIndex: number,
   depth: number
 ): any[] {
+
   if (depth === 0) {
     return [];
   }
@@ -1140,6 +1686,7 @@ function generateSubDashas(
     i < 9;
     i++
   ) {
+
     const planet =
       DASHA_ORDER[
         (
@@ -1219,6 +1766,7 @@ export function generateDashaHierarchy(
     remainingYears: number;
   }
 ) {
+
   const {
     dashaIndex,
     remainingYears,
@@ -1235,6 +1783,7 @@ export function generateDashaHierarchy(
     i < 9;
     i++
   ) {
+
     const dashaIdx =
       (
         dashaIndex +
