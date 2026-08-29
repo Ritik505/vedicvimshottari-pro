@@ -279,6 +279,72 @@ function getPlanetaryState(
 }
 
 // ============================================================
+// COMBUSTION / ASTA
+// ============================================================
+
+/**
+ * Standard Vedic combustion limits measured from the Sun.
+ * Mercury and Venus use narrower limits while retrograde.
+ * Sun itself, Rahu and Ketu are not treated as combust.
+ */
+const COMBUSTION_LIMITS: Record<string, { direct: number; retrograde: number }> = {
+  Moon: { direct: 12, retrograde: 12 },
+  Mars: { direct: 17, retrograde: 17 },
+  Mercury: { direct: 14, retrograde: 12 },
+  Jupiter: { direct: 11, retrograde: 11 },
+  Venus: { direct: 10, retrograde: 8 },
+  Saturn: { direct: 15, retrograde: 15 },
+};
+
+function getAngularDistanceFromSun(
+  siderealLongitude: number,
+  sunSiderealLongitude: number
+): number {
+  const raw = Math.abs(
+    siderealLongitude - sunSiderealLongitude
+  );
+  return Math.min(raw, 360 - raw);
+}
+
+function getPlanetCombust(
+  planet: string,
+  planetaryPosition: any,
+  allPlanetaryPositions: PlanetaryPosition[]
+): boolean {
+  if (
+    !planetaryPosition ||
+    planet === "Sun" ||
+    planet === "Rahu" ||
+    planet === "Ketu"
+  ) {
+    return false;
+  }
+
+  const limit = COMBUSTION_LIMITS[planet];
+  if (!limit) return false;
+
+  const sunPosition = allPlanetaryPositions.find(
+    (item) => item.planet === "Sun"
+  );
+
+  if (!sunPosition) return false;
+
+  const distance = getAngularDistanceFromSun(
+    Number(planetaryPosition.siderealLongitude),
+    Number(sunPosition.siderealLongitude)
+  );
+
+  const isRetrograde =
+    getPlanetRetrograde(planetaryPosition, planetaryPosition) === true;
+
+  const applicableLimit = isRetrograde
+    ? limit.retrograde
+    : limit.direct;
+
+  return distance <= applicableLimit;
+}
+
+// ============================================================
 // PLANETARY STATUS / DIGNITY
 // ============================================================
 
@@ -2793,6 +2859,13 @@ Thank you!`
               planet
             ) === true;
 
+          const combust =
+            getPlanetCombust(
+              planet.planet,
+              planetaryPosition,
+              result.planetaryPositions
+            );
+
           return [
             planet.planet,
             planet.sign,
@@ -2808,6 +2881,7 @@ Thank you!`
                : "No",
             planet.house,
             state,
+            combust ? "Yes" : "No",
             status,
           ];
         }
@@ -2827,6 +2901,7 @@ Thank you!`
           "Retro",
           "House",
           "State",
+          "Combust",
           "Sign Status",
         ],
       ],
@@ -3884,6 +3959,7 @@ Thank you!`
                         "Retro",
                         "House",
                         "State",
+                        "Combust",
                         "Sign Status",
                       ].map(
                         (
@@ -3953,6 +4029,13 @@ Thank you!`
                           getPlanetRetrograde(
                             planetaryPosition,
                             planet
+                          );
+
+                        const combust =
+                          getPlanetCombust(
+                            planet.planet,
+                            planetaryPosition,
+                            result!.planetaryPositions
                           );
 
                         return (
@@ -4025,6 +4108,17 @@ Thank you!`
                               {
                                 state
                               }
+                            </td>
+
+                            <td
+                              className={cn(
+                                "px-3 py-3 font-semibold whitespace-nowrap",
+                                combust
+                                  ? "text-orange-400"
+                                  : "text-stone-600"
+                              )}
+                            >
+                              {combust ? "Yes" : "No"}
                             </td>
 
                             <td
