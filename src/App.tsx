@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -4631,7 +4631,7 @@ Thank you!`
               {currentAge && (
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs mb-4">
 
-                  <span className="text-stone-500">
+                  <span className="text-white font-medium">
                     Current Age:
                   </span>
 
