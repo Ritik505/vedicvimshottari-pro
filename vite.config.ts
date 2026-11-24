@@ -27,8 +27,8 @@ export default defineConfig({
 
       manifest: {
         id: '/',
-        name: 'Your App Name',
-        short_name: 'Your App',
+        name: 'VEDIC VIMSHOTTARI',
+        short_name: 'VEDIC VIMSHOTTARI',
         description: 'Your application description.',
         theme_color: '#0B1324',
         background_color: '#070B14',
